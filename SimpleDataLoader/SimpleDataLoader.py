@@ -63,6 +63,18 @@ class MediaObject():
     thumbnail: Optional[str] = None,
     group: Optional[str] = None # if the media is a video segment from a larger video
 
+    def __init__(
+        self, 
+        source: str, 
+        source_type: str, 
+        thumbnail: Optional[str] = None,
+        group: Optional[str] = None
+    ):
+        self.source = source
+        self.source_type = source_type
+        self.thumbnail = thumbnail
+        self.group = group
+
 
 def add_tagsets(connection: DuckDBPyConnection, tagsets: List[Tagset], ignore_existing: bool = False):
     cursor = None

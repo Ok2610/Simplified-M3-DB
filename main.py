@@ -99,6 +99,57 @@ def add_tags_from_json(db_file: Path, tags_file: Path):
         print("Error loading tags from JSON:", e)
 
 
+# TODO: Add CLI command for adding media and taggings from JSON
+@cli.command()
+@click.argument("db_file", type=Path)
+@click.argument("medias_file", type=Path)
+@click.option("--ignore-existing", is_flag=True, help="Ignore existing media groups.")
+@click.option("--no-groups", is_flag=True, help="There are no media groups.")
+def add_medias_from_json(db_file: Path, medias_file: Path, ignore_existing: bool = False, no_groups: bool = False):
+    """
+    Add media objects from a JSON file.
+    
+    Parameters:
+    - db_file: Path to the DuckDB database file.
+    - medias_file: Path to the JSON file containing media objects.
+    - ignore_existing: Whether to ignore existing media entries.
+    - no_groups: Whether there are no media groups.
+
+    Example JSON format:
+    [
+        {
+            "source": "media_src_path.mp4/jpg/text",
+            "source_type": "image|video|audio|text|other", 
+            "thumbnail": "thumnail_src_path.jpg",
+            "group": "media_src_path.mp4"
+        },
+    ]
+
+    Note that the thumbnail and group fields are optional
+    """
+    if not db_file.exists():
+        raise FileNotFoundError(f"Database file not found: {db_file}")
+
+    if not medias_file.exists():
+        raise FileNotFoundError(f"Medias file not found: {medias_file}")
+
+    try:
+        with open(medias_file, 'r') as f:
+            medias_data : List[sdl.MediaObject] = []
+            for mo in json.load(f):
+                medias_data.append(
+                    sdl.MediaObject(
+                        mo['source'], 
+                        mo['source_type'],
+                        mo.get('thumbnail', None),
+                        mo.get('group', None)
+                    )
+                )
+            with duckdb.connect(db_file) as connection:
+                sdl.add_media_objects(connection, medias_data, ignore_existing, no_groups)
+    except Exception as e:
+        print("Error loading media objects from JSON:", e)
+
 
 if __name__ == "__main__":
     cli()
