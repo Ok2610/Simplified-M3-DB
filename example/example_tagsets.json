@@ -1,0 +1,22 @@
+[
+    { "name": "Video URI", "tagtype": "alphanumerical", "tags": [] },
+    { "name": "Duration (sec)", "tagtype": "numerical_dec", "tags": [] },
+    { "name": "fps", "tagtype": "numerical_dec", "tags": [] },
+    { "name": "Camera", "tagtype": "alphanumerical", "tags": [] },
+    { "name": "Album", "tagtype": "alphanumerical", "tags": [] },
+    { "name": "Shot index", "tagtype": "numerical_int", "tags": [] },
+    { "name": "Start (hh:mm:ss)", "tagtype": "time", "tags": [] },
+    { "name": "End (hh:mm:ss)", "tagtype": "time", "tags": [] },
+    { "name": "Start (sec)", "tagtype": "numerical_dec", "tags": [] },
+    { "name": "End (sec)", "tagtype": "numerical_dec", "tags": [] },
+    { "name": "Start (frame)", "tagtype": "numerical_int", "tags": [] },
+    { "name": "End (frame)", "tagtype": "numerical_int", "tags": [] },
+    { "name": "Keyframe frame", "tagtype": "numerical_int", "tags": [] },
+    { "name": "Keyframe (sec)", "tagtype": "numerical_dec", "tags": [] },
+    { "name": "Keyframe (hh:mm:ss)", "tagtype": "time", "tags": [] },
+    { "name": "Keyframe filename", "tagtype": "alphanumerical", "tags": [] },
+    { "name": "Day", "tagtype": "numerical_int", "tags": [] },
+    { "name": "Hour", "tagtype": "numerical_int", "tags": [] },
+    { "name": "Person", "tagtype": "alphanumerical", "tags": [] },
+    { "name": "Transcript", "tagtype": "alphanumerical", "tags": [] }
+]
