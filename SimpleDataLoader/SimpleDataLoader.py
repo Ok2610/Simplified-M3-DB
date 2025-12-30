@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Any
+from typing import List, Any, Optional
 from duckdb import DuckDBPyConnection
 
 
@@ -40,6 +40,28 @@ class Tagset():
         self.name = name
         self.tagtype = tagtype
         self.tags = tags
+
+
+class MediaSourceType(Enum):
+    IMAGE = 1,
+    VIDEO = 2,
+    AUDIO = 3,
+    TEXT = 4,
+    OTHER = 5
+
+    def get_source_type_name_by_value(value):
+        for member in MediaSourceType:
+            if member.value == value:
+                return member.name
+        raise ValueError(f"No TagType with value: {value}")
+
+
+@dataclass
+class MediaObject():
+    source: str
+    source_type: str
+    thumbnail: Optional[str] = None,
+    group: Optional[str] = None # if the media is a video segment from a larger video
 
 
 def add_tagsets(connection: DuckDBPyConnection, tagsets: List[Tagset], ignore_existing: bool = False):
@@ -104,6 +126,54 @@ def add_tags(connection: DuckDBPyConnection, tags: Tags):
         cursor.execute("COMMIT;")
     except Exception as e:
         print(f"Error adding tags ({tags.tagset_name}):", e)
+        if cursor:
+            cursor.execute("ROLLBACK;")
+    finally:
+        if cursor:
+            cursor.close()
+
+
+def add_medias(
+    connection: DuckDBPyConnection,
+    media_objects: List[MediaObject],
+    no_groups: bool = False,
+    ignore_existing: bool = False
+):
+    cursor = None
+    try:
+        ignore_existing_clause = "OR IGNORE" if ignore_existing else ""
+        group_medias = {}
+        groups = []
+        if not no_groups:
+            for mo in media_objects:
+                if mo.group is not None and mo.group not in groups:
+                    group_medias[mo.group] = [mo]
+                elif mo.group is not None:
+                    group_medias[mo.group].append(mo)
+                else:
+                    groups.append(mo)
+
+        cursor = connection.cursor()
+        for grp_mo in groups:
+            cursor.execute("BEGIN TRANSACTION;")
+            group_id = cursor.execute(
+                f"""
+                INSERT {ignore_existing_clause} INTO media (source, source_type, thumbnail)
+                VALUES (?, ?, ?)
+                RETURNING id
+                """,
+                [grp_mo.source, grp_mo.source_type, grp_mo.thumbnail]
+            ).fetchone()[0]
+            cursor.executemany(
+                f"""
+                INSERT {ignore_existing_clause} INTO media (source, source_type, thumbnail, media_group)
+                VALUES (?, ?, ?, ?)
+                """,
+                [[mo.source, mo.source_type, mo.thumbnail, group_id] for mo in group_medias.get(grp_mo.group, [])]
+            )
+            cursor.execute("COMMIT;")
+    except Exception as e:
+        print("Error adding media objects:", e)
         if cursor:
             cursor.execute("ROLLBACK;")
     finally:
