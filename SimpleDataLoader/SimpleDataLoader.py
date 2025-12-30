@@ -96,7 +96,7 @@ def add_tagsets(connection: DuckDBPyConnection, tagsets: List[Tagset], ignore_ex
                 print(f'Adding tags for tagset: {tagset.name}...')
                 add_tags(connection, tagset.tags)
     except Exception as e:
-        print("Error adding tagsets:", e)
+        print("(SDL.add_tagsets) Error adding tagsets: ", e)
         if cursor:
             cursor.execute("ROLLBACK;")
     finally:
@@ -137,7 +137,7 @@ def add_tags(connection: DuckDBPyConnection, tags: Tags):
         )
         cursor.execute("COMMIT;")
     except Exception as e:
-        print(f"Error adding tags ({tags.tagset_name}):", e)
+        print(f"(SDL.add_tags) Error adding tags ({tags.tagset_name}): ", e)
         if cursor:
             cursor.execute("ROLLBACK;")
     finally:
@@ -185,7 +185,7 @@ def add_medias(
             )
             cursor.execute("COMMIT;")
     except Exception as e:
-        print("Error adding media objects:", e)
+        print("(SDL.add_medias): ", e)
         if cursor:
             cursor.execute("ROLLBACK;")
     finally:
@@ -193,14 +193,9 @@ def add_medias(
             cursor.close()
 
 
-def add_media_tagging(connection: DuckDBPyConnection, tagset_name, tag_name, media_id):
-    """
-    Add a tagging between a media and a tag.
-    """
-    cursor = None
+def get_tag_ids_from_tagset_and_values(connection: DuckDBPyConnection, tagset_name: str, tag_values: List[Any]) -> List[int]:
     try:
-        cursor = connection.cursor()
-        tagset_id, tagtype_id = cursor.execute(
+        tagset_id, tagtype_id = connection.execute(
                     """
                     SELECT id, tagtype_id 
                     FROM tagsets ts
@@ -208,28 +203,85 @@ def add_media_tagging(connection: DuckDBPyConnection, tagset_name, tag_name, med
                     """, 
                     [tagset_name]
                 ).fetchone()[0]
-        tag = cursor.execute(
+        values_placeholders = ','.join(['?'] * len(tag_values))
+        tags = connection.execute(
             f"""
-            SELECT ttg.id, ttg.name
+            SELECT ttg.id, ttg.value
             FROM {TagType.get_tagtype_name_by_value(tagtype_id).lower()}_tags ttg 
             WHERE ttg.tagset_id = ?
-              AND ttg.value = ?
+              AND ttg.value IN ({values_placeholders})
             """,
-            [tagset_id, tag_name]
-        ).fetchone()
-        if tag is not None:
-            cursor.execute(
-                """
-                INSERT INTO taggings (media_id, tag_id)
-                VALUES (?, ?)
-                """,
-                [media_id, tag[0]]
-            )
+            [tagset_id, tag_values]
+        ).fetchall()
+
+        if tags is not None:
+            return { (tagset_name, t[1]): t[0] for t in tags}
         else:
-            print(f'Tag not found: (Tagset, {tagset_name}), (Tag, {tag_name}), (Media, {media_id})')
-            raise Exception("Tag not found")
+            print(f'Tag(s) not found: (Tagset, {tagset_name})')
+            raise Exception("Tag(s) not found")
     except Exception as e:
-        print(e)
+        print("(SDL.get_tag_ids_from_tagset_with_values): ", e)
+
+
+def add_media_taggings(connection: DuckDBPyConnection, media_tag_mappings: List[dict]):
+    """
+    Add taggings between media and tags in bulk.
+    1. Get a list of JSON objects containing {"media_source": "source", "tagset_name": [list_of_tag_values]}
+    2. For each JSON object, get the media id, group tagset names and values
+    3. For each tagset get the tag ids, such that we have a mapping of (tagset_name, tag_value) -> tag_id
+    4. Create a list of taggings (media_id, tag_id) and bulk insert into taggings table
+    """
+    cursor = None
+    try:
+        cursor = connection.cursor()
+        tagset_to_values = {}
+        media_source_to_id = {}
+
+        # Step 2: Group tagset names and values
+        for mapping in media_tag_mappings:
+            media_source = mapping['media_source']
+            if media_source not in media_source_to_id:
+                media_id = cursor.execute(
+                    """
+                    SELECT id 
+                    FROM media 
+                    WHERE source = ?
+                    """,
+                    [media_source]
+                ).fetchone()[0]
+                media_source_to_id[media_source] = media_id
+
+            for tagset_name, tag_values in mapping['tagsets'].items():
+                if tagset_name not in tagset_to_values:
+                    tagset_to_values[tagset_name] = set()
+                tagset_to_values[tagset_name].update(tag_values)
+
+        # Step 3: Get tag ids for each tagset and its values
+        # NOTE: Potential for concurrency here if needed
+        tag_mapping = {}
+        for tagset_name, tag_values in tagset_to_values.items():
+            tag_ids = get_tag_ids_from_tagset_and_values(connection, tagset_name, list(tag_values))
+            tag_mapping.update(tag_ids)
+
+        # Step 4: Create list of taggings and bulk insert
+        taggings = []
+        for mapping in media_tag_mappings:
+            media_id = media_source_to_id[mapping['media_source']]
+            for tagset_name, tag_values in mapping['tagsets'].items():
+                for tag_value in tag_values:
+                    tag_id = tag_mapping.get((tagset_name, tag_value))
+                    if tag_id:
+                        taggings.append((media_id, tag_id))
+
+        cursor.executemany(
+            """
+            INSERT INTO taggings (media_id, tag_id)
+            VALUES (?, ?)
+            """,
+            taggings
+        )
+    except Exception as e:
+        print("(SDL.add_media_taggings): ", e)
     finally:
         if cursor:
             cursor.close()

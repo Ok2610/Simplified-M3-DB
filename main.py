@@ -99,7 +99,6 @@ def add_tags_from_json(db_file: Path, tags_file: Path):
         print("Error loading tags from JSON:", e)
 
 
-# TODO: Add CLI command for adding media and taggings from JSON
 @cli.command()
 @click.argument("db_file", type=Path)
 @click.argument("medias_file", type=Path)
