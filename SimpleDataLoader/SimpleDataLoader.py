@@ -182,14 +182,16 @@ def add_medias(
 
 
 def add_media_tagging(connection: DuckDBPyConnection, tagset_name, tag_name, media_id):
+    """
+    Add a tagging between a media and a tag.
+    """
     cursor = None
     try:
         cursor = connection.cursor()
-        tagtype = cursor.execute(
+        tagset_id, tagtype_id = cursor.execute(
                     """
-                    SELECT tt.description 
-                    FROM tag_types tt
-                    JOIN tagsets ts ON ts.tagtype_id = tt.id 
+                    SELECT id, tagtype_id 
+                    FROM tagsets ts
                     WHERE ts.name = ?
                     """, 
                     [tagset_name]
@@ -197,11 +199,11 @@ def add_media_tagging(connection: DuckDBPyConnection, tagset_name, tag_name, med
         tag = cursor.execute(
             f"""
             SELECT ttg.id, ttg.name
-            FROM {tagtype}_tags ttg 
-            JOIN tagsets ts ON ts.id = ttg.tagset_id 
-            WHERE ts.name = ? AND ttg.name = ?
+            FROM {TagType.get_tagtype_name_by_value(tagtype_id).lower()}_tags ttg 
+            WHERE ttg.tagset_id = ?
+              AND ttg.value = ?
             """,
-            [tagset_name, tag_name]
+            [tagset_id, tag_name]
         ).fetchone()
         if tag is not None:
             cursor.execute(
@@ -219,44 +221,3 @@ def add_media_tagging(connection: DuckDBPyConnection, tagset_name, tag_name, med
     finally:
         if cursor:
             cursor.close()
-
-
-# def create_and_add_media_taggings(connection: DuckDBPyConnection, tags: List[Tuple[str, str]], media_id):
-#     cursor = None
-#     try:
-#         cursor = connection.cursor()
-#         tagtype = cursor.execute(
-#                     """
-#                     SELECT tt.description 
-#                     FROM tag_types tt
-#                     JOIN tagsets ts ON ts.tagtype_id = tt.id 
-#                     WHERE ts.name = ?
-#                     """, 
-#                     [tagset_name]
-#                 ).fetchone()[0]
-#         tag = cursor.execute(
-#             f"""
-#             SELECT ttg.id, ttg.name
-#             FROM {tagtype}_tags ttg 
-#             JOIN tagsets ts ON ts.id = ttg.tagset_id 
-#             WHERE ts.name = ? AND ttg.name = ?
-#             """,
-#             [tagset_name, tag_name]
-#         ).fetchone()
-#         if tag is not None:
-#             cursor.execute(
-#                 """
-#                 INSERT INTO taggings (media_id, tag_id)
-#                 VALUES (?, ?)
-#                 """,
-#                 [media_id, tag[0]]
-#             )
-#         else:
-#             print(f'Tag not found: (Tagset, {tagset_name}), (Tag, {tag_name}), (Media, {media_id})')
-#             raise Exception("Tag not found")
-#     except Exception as e:
-#         print(e)
-#     finally:
-#         if cursor:
-#             cursor.close()
-
