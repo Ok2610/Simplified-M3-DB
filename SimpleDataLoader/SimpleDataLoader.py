@@ -226,10 +226,18 @@ def get_tag_ids_from_tagset_and_values(connection: DuckDBPyConnection, tagset_na
 def add_media_taggings(connection: DuckDBPyConnection, media_tag_mappings: List[dict]):
     """
     Add taggings between media and tags in bulk.
-    1. Get a list of JSON objects containing {"media_source": "source", "tagset_name": [list_of_tag_values]}
-    2. For each JSON object, get the media id, group tagset names and values
-    3. For each tagset get the tag ids, such that we have a mapping of (tagset_name, tag_value) -> tag_id
-    4. Create a list of taggings (media_id, tag_id) and bulk insert into taggings table
+
+    Parameters:
+    - connection: DuckDBPyConnection
+    - media_tag_mappings: List of dictionaries with the following structure:
+        {
+            'media_source': str,
+            'tagsets': {
+                'tagset_name_1': [tag_value_1, tag_value_2, ...],
+                'tagset_name_2': [tag_value_3, tag_value_4, ...],
+                ...
+            }
+        }
     """
     cursor = None
     try:
