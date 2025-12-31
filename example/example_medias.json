@@ -1,0 +1,27 @@
+[ 
+    {
+        "source": "video_1.mp4",
+        "source_type": "video",
+        "thumbnail": "optional_img.jpg",
+        "group": "optional.mp4",
+        "comment": "if the media is a video segment from a larger video"
+    },
+    {
+        "source": "optional.mp4",
+        "source_type": "video",
+        "thumbnail": "optional_img.jpg",
+        "group": null
+    },
+    {
+        "source": "image_1.jpg",
+        "source_type": "image",
+        "thumbnail": "optional_img.jpg",
+        "group": "video_1.mp4"
+    },
+    {
+        "source": "transcript_text_1",
+        "source_type": "text",
+        "thumbnail": null,
+        "group": "video_1.mp4"
+    }
+]

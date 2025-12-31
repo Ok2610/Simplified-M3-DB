@@ -10,9 +10,9 @@ DROP TABLE IF EXISTS tagsets;
 DROP TABLE IF EXISTS tag_types;
 DROP TABLE IF EXISTS medias;
 DROP TABLE IF EXISTS source_types;
-DROP SEQUENCE IF EXISTS media_id_seq;
-DROP SEQUENCE IF EXISTS tagset_id_seq;
-DROP SEQUENCE IF EXISTS tag_id_seq;
+-- DROP SEQUENCE IF EXISTS media_id_seq;
+-- DROP SEQUENCE IF EXISTS tagset_id_seq;
+-- DROP SEQUENCE IF EXISTS tag_id_seq;
 
 ------------------------------------------------------------------------- Source Types
 CREATE TABLE source_types (
@@ -29,9 +29,9 @@ INSERT INTO source_types (id, name) VALUES
 
 
 ------------------------------------------------------------------------- Medias
-CREATE SEQUENCE media_id_seq; 
+-- CREATE SEQUENCE media_id_seq; 
 CREATE TABLE medias (
-    id integer PRIMARY KEY DEFAULT nextval('media_id_seq'),
+    id integer PRIMARY KEY, -- DEFAULT nextval('media_id_seq'),
     source text NOT NULL UNIQUE, -- URI or special identifier
     source_type integer NOT NULL REFERENCES source_types(id),
     thumbnail_uri text,
@@ -54,17 +54,17 @@ INSERT INTO tag_types (id, description) VALUES
 (7, 'json');
 
 ------------------------------------------------------------------------- TagSets
-CREATE SEQUENCE tagset_id_seq;
+-- CREATE SEQUENCE tagset_id_seq;
 CREATE TABLE tagsets (
-    id integer PRIMARY KEY DEFAULT nextval('tagset_id_seq'),
+    id integer PRIMARY KEY, -- DEFAULT nextval('tagset_id_seq'),
     name text NOT NULL UNIQUE,
     tagtype_id integer NOT NULL
 );
 
 ------------------------------------------------------------------------- Tags
-CREATE SEQUENCE tag_id_seq;
+-- CREATE SEQUENCE tag_id_seq;
 CREATE TABLE tags (
-    id integer PRIMARY KEY DEFAULT nextval('tag_id_seq'),
+    id integer PRIMARY KEY, -- DEFAULT nextval('tag_id_seq'),
     tagtype_id integer NOT NULL,
     tagset_id integer NOT NULL
 );
@@ -74,7 +74,7 @@ CREATE TABLE alphanumerical_tags (
     id integer PRIMARY KEY REFERENCES tags(id),
     value text NOT NULL,
     tagset_id integer NOT NULL REFERENCES tagsets(id),
-    UNIQUE (value, tagset_id),
+    UNIQUE (value, tagset_id)
 );
 
 ------------------------------------------------------------------------- Timestamp Tags

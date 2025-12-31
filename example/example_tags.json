@@ -1,4 +1,5 @@
 [
     { "tagset_name": "Day", "tags": [1, 2, 3, 4] },
-    { "tagset_name": "fps", "tags": [24, 50, 60] }
+    { "tagset_name": "fps", "tags": [24, 50, 60] },
+    { "tagset_name": "Start (sec)", "tags": [0, 2, 5, 10] }
 ]

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Any, Optional
-from duckdb import DuckDBPyConnection
+from typing import Dict, List, Any, Optional, Set
+from sqlite3 import Connection
 
 
 class TagType(Enum):
@@ -43,24 +43,18 @@ class Tagset():
 
 
 class MediaSourceType(Enum):
-    IMAGE = 1,
-    VIDEO = 2,
-    AUDIO = 3,
-    TEXT = 4,
+    IMAGE = 1
+    VIDEO = 2
+    AUDIO = 3
+    TEXT = 4
     OTHER = 5
-
-    def get_source_type_name_by_value(value):
-        for member in MediaSourceType:
-            if member.value == value:
-                return member.name
-        raise ValueError(f"No TagType with value: {value}")
 
 
 @dataclass
 class MediaObject():
     source: str
-    source_type: str
-    thumbnail: Optional[str] = None,
+    source_type: MediaSourceType
+    thumbnail: Optional[str] = None
     group: Optional[str] = None # if the media is a video segment from a larger video
 
     def __init__(
@@ -76,35 +70,39 @@ class MediaObject():
         self.group = group
 
 
-def add_tagsets(connection: DuckDBPyConnection, tagsets: List[Tagset], ignore_existing: bool = False):
+def add_tagsets(connection: Connection, tagsets: List[Tagset], ignore_existing: bool = False):
     cursor = None
     try:
         ignore_existing_clause = "OR IGNORE" if ignore_existing else ""
         cursor = connection.cursor()
-        cursor.execute("BEGIN TRANSACTION;")
+        # cursor.execute("BEGIN TRANSACTION")
         cursor.executemany(
             f"""
             INSERT {ignore_existing_clause} INTO tagsets (name, tagtype_id)
             VALUES (?, ?)
             """,
-            [[tagset.name, tagset.tagtype.value] for tagset in tagsets]
+            [(tagset.name, tagset.tagtype.value) for tagset in tagsets]
         )
-        cursor.execute("COMMIT;")
+        connection.commit()
+        # cursor.execute("COMMIT")
         cursor.close()
+
         for tagset in tagsets:
             if len(tagset.tags.tags) > 0:
                 print(f'Adding tags for tagset: {tagset.name}...')
                 add_tags(connection, tagset.tags)
     except Exception as e:
         print("(SDL.add_tagsets) Error adding tagsets: ", e)
-        if cursor:
-            cursor.execute("ROLLBACK;")
+        # if cursor:
+            # cursor.execute("ROLLBACK")
+        if connection.in_transaction:
+            connection.rollback()
     finally:
         if cursor:
             cursor.close()
 
 
-def add_tags(connection: DuckDBPyConnection, tags: Tags):
+def add_tags(connection: Connection, tags: Tags):
     cursor = None
     try:
         cursor = connection.cursor()
@@ -113,19 +111,18 @@ def add_tags(connection: DuckDBPyConnection, tags: Tags):
             [tags.tagset_name]
         ).fetchone()
 
-        cursor.execute("BEGIN TRANSACTION;")
         # Add to tags to the table and get the id of the last inserted tag
-        res = cursor.executemany(
+        cursor.executemany(
             """
             INSERT INTO tags (tagset_id, tagtype_id)
             VALUES (?, ?)
-            RETURNING id;
             """,
-            [[tagset_id, tagtype_id] for _ in range(len(tags.tags))],
-        ).fetchone() # Gets the id of the last inserted row
+            [[tagset_id, tagtype_id] for _ in range(len(tags.tags))]
+        ) 
+        res = cursor.execute("SELECT last_insert_rowid()").fetchone()[0]
 
         # The bulk insert via the transaction ensures that all inserted tag ids are in a sequence
-        tag_ids = list(range(res[0] - len(tags.tags) + 1, res[0] + 1))
+        tag_ids = list(range(res - len(tags.tags) + 1, res + 1))
 
         # Add tags to their appropriate tagtype table
         cursor.executemany(
@@ -135,74 +132,113 @@ def add_tags(connection: DuckDBPyConnection, tags: Tags):
             """,
             [[tag_id, val, tagset_id] for tag_id, val in zip(tag_ids, tags.tags)]
         )
-        cursor.execute("COMMIT;")
+        connection.commit()
     except Exception as e:
         print(f"(SDL.add_tags) Error adding tags ({tags.tagset_name}): ", e)
-        if cursor:
-            cursor.execute("ROLLBACK;")
+        if connection.in_transaction:
+            connection.rollback()
     finally:
         if cursor:
             cursor.close()
 
 
 def add_medias(
-    connection: DuckDBPyConnection,
+    connection: Connection,
     media_objects: List[MediaObject],
-    no_groups: bool = False,
     ignore_existing: bool = False
 ):
     cursor = None
     try:
+        # Groups are essentially a leader-member relationship where objects without a group are potential leaders
         ignore_existing_clause = "OR IGNORE" if ignore_existing else ""
-        group_medias = {}
-        groups = []
-        if not no_groups:
-            for mo in media_objects:
-                if mo.group is not None and mo.group not in groups:
-                    group_medias[mo.group] = [mo]
-                elif mo.group is not None:
-                    group_medias[mo.group].append(mo)
-                else:
-                    groups.append(mo)
+        group_medias: Dict[str, List[MediaObject]] = {}
+        leaders: Dict[str, MediaObject] = {}
+        for mo in media_objects:
+            if mo.group is not None and mo.group not in group_medias:
+                group_medias[mo.group] = [mo]
+            elif mo.group is not None:
+                group_medias[mo.group].append(mo)
+        
+        for mo in media_objects:
+            if mo.source in group_medias:
+                leaders[mo.source] = mo
+
+        for grp in group_medias.keys():
+            if grp not in leaders:
+                raise ValueError(f"Group leader media object not found for group: {grp}")
 
         cursor = connection.cursor()
-        for grp_mo in groups:
-            cursor.execute("BEGIN TRANSACTION;")
-            group_id = cursor.execute(
-                f"""
-                INSERT {ignore_existing_clause} INTO media (source, source_type, thumbnail)
-                VALUES (?, ?, ?)
-                RETURNING id
-                """,
-                [grp_mo.source, grp_mo.source_type, grp_mo.thumbnail]
-            ).fetchone()[0]
-            cursor.executemany(
-                f"""
-                INSERT {ignore_existing_clause} INTO media (source, source_type, thumbnail, media_group)
-                VALUES (?, ?, ?, ?)
-                """,
-                [[mo.source, mo.source_type, mo.thumbnail, group_id] for mo in group_medias.get(grp_mo.group, [])]
-            )
-            cursor.execute("COMMIT;")
+        # First add all media objects without groups
+        added = set()
+        for grp_lead in leaders:
+            grp_mo = leaders[grp_lead]
+            group_id = None
+            try:
+                group_id = cursor.execute(
+                    f"""
+                    INSERT INTO medias (source, source_type, thumbnail_uri)
+                    VALUES (?, ?, ?)
+                    RETURNING id
+                    """,
+                    [grp_mo.source, grp_mo.source_type.value, grp_mo.thumbnail]
+                ).fetchone()[0]
+                connection.commit()
+            except:
+                group_id = cursor.execute("SELECT id FROM medias WHERE source = ?", [grp_mo.source]).fetchone()[0]
+
+            added.add(grp_mo.source)
+
+            # Then add all media objects that belong to this group
+            if grp_mo.source in group_medias:
+                grp_members = []
+                for mo in group_medias[grp_mo.source]:
+                    # Avoid adding a leader again
+                    if mo.source not in added:
+                        grp_members.append([mo.source, mo.source_type.value, mo.thumbnail, group_id])
+                    else:
+                        # Update the group_id of leader media object
+                        cursor.execute(
+                            """
+                            UPDATE medias
+                            SET group_id = ?
+                            WHERE source = ?
+                            """,
+                            [group_id, mo.source]
+                        )
+                cursor.executemany(
+                    f"""
+                    INSERT {ignore_existing_clause} INTO medias (source, source_type, thumbnail_uri, group_id)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    grp_members
+                )
+                added.update([mo[0] for mo in grp_members])
+            connection.commit()
     except Exception as e:
         print("(SDL.add_medias): ", e)
-        if cursor:
-            cursor.execute("ROLLBACK;")
+        if connection.in_transaction:
+            connection.rollback()
     finally:
         if cursor:
             cursor.close()
 
 
-def get_tag_ids_from_tagset_and_values(connection: DuckDBPyConnection, tagset_name: str, tag_values: List[Any]) -> List[int]:
+def get_tag_ids_from_tagset_and_values(connection: Connection, tagset_name: str, tag_values: List[Any]) -> dict:
     try:
-        tagset_id, tagtype_id = connection.execute(
-                    """
-                    SELECT id, tagtype_id 
-                    FROM tagsets ts
-                    WHERE ts.name = ?
-                    """, 
-                    [tagset_name]
-                ).fetchone()[0]
+        res = connection.execute(
+            """
+            SELECT id, tagtype_id 
+            FROM tagsets ts
+            WHERE ts.name = ?
+            """, 
+            [tagset_name]
+        ).fetchone()
+        if res is None:
+            print(f'"{tagset_name}" tagset not found, skipping...')
+            return {}
+        tagset_id, tagtype_id = res
+
+        # Get tag ids for the given tagset and values
         values_placeholders = ','.join(['?'] * len(tag_values))
         tags = connection.execute(
             f"""
@@ -211,24 +247,25 @@ def get_tag_ids_from_tagset_and_values(connection: DuckDBPyConnection, tagset_na
             WHERE ttg.tagset_id = ?
               AND ttg.value IN ({values_placeholders})
             """,
-            [tagset_id, tag_values]
+            [tagset_id, *tag_values]
         ).fetchall()
 
-        if tags is not None:
-            return { (tagset_name, t[1]): t[0] for t in tags}
+        # Return a dictionary mapping (tagset_name, tag_value) to tag_id
+        if tags != []:
+            return { (tagset_name, t[1]): t[0] for t in tags }
         else:
-            print(f'Tag(s) not found: (Tagset, {tagset_name})')
-            raise Exception("Tag(s) not found")
+            print(f'No tag(s) found for "{tagset_name}" tagset, skipping...')
+            return {}
     except Exception as e:
         print("(SDL.get_tag_ids_from_tagset_with_values): ", e)
 
 
-def add_media_taggings(connection: DuckDBPyConnection, media_tag_mappings: List[dict]):
+def add_media_taggings(connection: Connection, media_tag_mappings: List[dict]):
     """
     Add taggings between media and tags in bulk.
 
     Parameters:
-    - connection: DuckDBPyConnection
+    - connection: sqlite3.Connection
     - media_tag_mappings: List of dictionaries with the following structure:
         {
             'media_source': str,
@@ -245,14 +282,15 @@ def add_media_taggings(connection: DuckDBPyConnection, media_tag_mappings: List[
         tagset_to_values = {}
         media_source_to_id = {}
 
-        # Step 2: Group tagset names and values
+        # Step 1: Group tagset names and values
+        print("(SDL.add_media_taggings): Step 1)")
         for mapping in media_tag_mappings:
             media_source = mapping['media_source']
             if media_source not in media_source_to_id:
                 media_id = cursor.execute(
                     """
                     SELECT id 
-                    FROM media 
+                    FROM medias 
                     WHERE source = ?
                     """,
                     [media_source]
@@ -264,14 +302,16 @@ def add_media_taggings(connection: DuckDBPyConnection, media_tag_mappings: List[
                     tagset_to_values[tagset_name] = set()
                 tagset_to_values[tagset_name].update(tag_values)
 
-        # Step 3: Get tag ids for each tagset and its values
+        # Step 2: Get tag ids for each tagset and its values
         # NOTE: Potential for concurrency here if needed
+        print("(SDL.add_media_taggings): Step 2)")
         tag_mapping = {}
         for tagset_name, tag_values in tagset_to_values.items():
             tag_ids = get_tag_ids_from_tagset_and_values(connection, tagset_name, list(tag_values))
             tag_mapping.update(tag_ids)
 
-        # Step 4: Create list of taggings and bulk insert
+        # Step 3: Create list of taggings and bulk insert
+        print("(SDL.add_media_taggings): Step 3)")
         taggings = []
         for mapping in media_tag_mappings:
             media_id = media_source_to_id[mapping['media_source']]
@@ -288,8 +328,11 @@ def add_media_taggings(connection: DuckDBPyConnection, media_tag_mappings: List[
             """,
             taggings
         )
+        connection.commit()
     except Exception as e:
         print("(SDL.add_media_taggings): ", e)
+        if connection.in_transaction:
+            connection.rollback()
     finally:
         if cursor:
             cursor.close()

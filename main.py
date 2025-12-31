@@ -1,11 +1,10 @@
 import click
 import json
-import duckdb
+import sqlite3
 from typing import List
 from pathlib import Path
 
-from SimpleDataLoader import Tagset, Tags, TagType
-import SimpleDataLoader as sdl
+import SimpleM3DataLoader as sdl
 
 @click.group()
 def cli():
@@ -13,10 +12,17 @@ def cli():
 
 @cli.command()
 @click.argument("dbname", type=str)
-def initdb(dbname: str):
+@click.argument("ddl_file", type=Path)
+def initdb(dbname: str, ddl_file: Path):
     """Initializa the database with the given name in the current directory."""
-    import os
-    os.system(f"duckdb {dbname}.db -f ddl.sql")
+    if not ddl_file.exists():
+        raise FileNotFoundError(f"DDL file not found: {ddl_file}")
+    
+    with sqlite3.connect(f'{dbname}.db') as connection:
+        with open(ddl_file, 'r') as f:
+            ddl_script = f.read()
+            connection.executescript(ddl_script)
+
 
 @cli.command()
 @click.argument("db_file", type=Path)
@@ -27,7 +33,7 @@ def add_tagsets_from_json(db_file: Path, tagsets_f: Path, ignore_existing: bool 
     Add tagsets from a JSON file.
     
     Parameters:
-    - db_file: Path to the DuckDB database file.
+    - db_file: Path to the sqlite3 database file.
     - tagsets_f: Path to the JSON file containing tagsets.
 
     Example JSON format:
@@ -43,18 +49,18 @@ def add_tagsets_from_json(db_file: Path, tagsets_f: Path, ignore_existing: bool 
 
     try:
         with open(tagsets_f, 'r') as f:
-            tagsets_data : List[Tagset] = []
+            tagsets_data : List[sdl.Tagset] = []
             for ts in json.load(f):
-                if ts['tagtype'].upper() not in TagType.__members__:
+                if ts['tagtype'].upper() not in sdl.TagType.__members__:
                     raise ValueError(f"Invalid tag type: ({ts['name'], ts['tagtype']})")
                 tagsets_data.append(
-                    Tagset(
+                    sdl.Tagset(
                         ts['name'], 
-                        TagType[ts['tagtype'].upper()],
-                        Tags(ts['name'], ts['tags'])
+                        sdl.TagType[ts['tagtype'].upper()],
+                        sdl.Tags(ts['name'], ts['tags'])
                     )
                 )
-            with duckdb.connect(db_file) as connection:
+            with sqlite3.connect(db_file, autocommit=False) as connection:
                 sdl.add_tagsets(connection, tagsets_data, ignore_existing)
     except Exception as e:
         print("Error loading tagsets from JSON:", e)
@@ -68,7 +74,7 @@ def add_tags_from_json(db_file: Path, tags_file: Path):
     Add tags from a JSON file.
     
     Parameters:
-    - db_file: Path to the DuckDB database file.
+    - db_file: Path to the sqlite3 database file.
     - tags_file: Path to the JSON file containing tags.
 
     Example JSON format:
@@ -84,15 +90,15 @@ def add_tags_from_json(db_file: Path, tags_file: Path):
 
     try:
         with open(tags_file, 'r') as f:
-            tags_data : List[Tags] = []
+            tags_data : List[sdl.Tags] = []
             for tg in json.load(f):
                 tags_data.append(
-                    Tags(
+                    sdl.Tags(
                         tg['tagset_name'], 
                         tg['tags']
                     )
                 )
-            with duckdb.connect(db_file) as connection:
+            with sqlite3.connect(db_file, autocommit=False) as connection:
                 for tags in tags_data:
                     sdl.add_tags(connection, tags)
     except Exception as e:
@@ -109,7 +115,7 @@ def add_medias_from_json(db_file: Path, medias_file: Path, ignore_existing: bool
     Add media objects from a JSON file.
     
     Parameters:
-    - db_file: Path to the DuckDB database file.
+    - db_file: Path to the sqlite3 database file.
     - medias_file: Path to the JSON file containing media objects.
     - ignore_existing: Whether to ignore existing media entries.
     - no_groups: Whether there are no media groups.
@@ -139,15 +145,52 @@ def add_medias_from_json(db_file: Path, medias_file: Path, ignore_existing: bool
                 medias_data.append(
                     sdl.MediaObject(
                         mo['source'], 
-                        mo['source_type'],
+                        sdl.MediaSourceType[mo['source_type'].upper()],
                         mo.get('thumbnail', None),
                         mo.get('group', None)
                     )
                 )
-            with duckdb.connect(db_file) as connection:
-                sdl.add_media_objects(connection, medias_data, ignore_existing, no_groups)
+            with sqlite3.connect(db_file, autocommit=False) as connection:
+                sdl.add_medias(connection, medias_data, ignore_existing)
     except Exception as e:
         print("Error loading media objects from JSON:", e)
+
+
+@cli.command()
+@click.argument("db_file", type=Path)
+@click.argument("taggings_file", type=Path)
+def add_media_taggings_from_json(db_file: Path, taggings_file: Path):
+    """
+    Add media taggings from a JSON file.
+
+    Parameters:
+    - db_file: Path to the sqlite3 database file.
+    - taggings_file: Path to the JSON file containing media taggings.    
+
+    Example JSON format:
+    [
+        {
+            "media_source": "media_src_path.mp4/jpg/text",
+            "tags": {
+                "Tagset1": ["tag1", "tag2"],
+                "Tagset2": [1, 2, 3, 4]
+            }
+        }
+    ]
+    """
+    if not db_file.exists():
+        raise FileNotFoundError(f"Database file not found: {db_file}")
+
+    if not taggings_file.exists():
+        raise FileNotFoundError(f"Taggings file not found: {taggings_file}")
+    
+    try:
+        with open(taggings_file, 'r') as f:
+            taggings_data = json.load(f)
+            with sqlite3.connect(db_file, autocommit=False) as connection:
+                sdl.add_media_taggings(connection, taggings_data)
+    except Exception as e:
+        print("Error loading media taggings from JSON:", e) 
 
 
 if __name__ == "__main__":

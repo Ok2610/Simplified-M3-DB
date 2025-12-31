@@ -1,0 +1,37 @@
+[
+    {
+        "media_source": "video_1.mp4",
+        "tagsets": {
+            "Start (sec)": [0],
+            "End (sec)": [180],
+            "User Tags": ["cycle", "sport", "crazy stunts"],
+            "Categories": ["sport"],
+            "Day": [1],
+            "Caption": ["Highlights of a sports event showcasing BMX stunts"],
+            "Segment_Caption_Index_Id": [0],
+            "comment": ["could also create segment captions as own media similar to transcripts"]
+        }
+    },
+    {
+        "media_source": "image_1.jpg",
+        "tagsets": {
+            "Start (sec)": [5],
+            "End (sec)": [5],
+            "Objects": ["person", "cycle", "ramp"],
+            "Caption": ["Person on a bicycle performing a stunt"],
+            "Clip_Index_Id": [23],
+            "Caption_KF_Index_Id": [12]
+        }
+    },
+    {
+        "media_source": "transcript_text_1",
+        "tagsets": {
+            "Start (sec)": [2],
+            "End (sec)": [12],
+            "Text": ["Here are highlights from day one of the BMX event"],
+            "Transcript_Index_Id": [0],
+            "Closest_Keyframe": ["image_1.jpg"],
+            "comment": ["closest keyframe can be precomputed, but also possible to do via function"]
+        }
+    }
+]
