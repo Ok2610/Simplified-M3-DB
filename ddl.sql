@@ -16,8 +16,8 @@ DROP TABLE IF EXISTS source_types;
 
 ------------------------------------------------------------------------- Source Types
 CREATE TABLE source_types (
-    id integer PRIMARY KEY,
-    name text NOT NULL UNIQUE
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
 );
 
 INSERT INTO source_types (id, name) VALUES
@@ -31,17 +31,17 @@ INSERT INTO source_types (id, name) VALUES
 ------------------------------------------------------------------------- Medias
 -- CREATE SEQUENCE media_id_seq; 
 CREATE TABLE medias (
-    id integer PRIMARY KEY, -- DEFAULT nextval('media_id_seq'),
-    source text NOT NULL UNIQUE, -- URI or special identifier
-    source_type integer NOT NULL REFERENCES source_types(id),
-    thumbnail_uri text,
-    group_id integer REFERENCES medias(id) -- for grouping related media (e.g. video and its thumbnail)
+    id INTEGER PRIMARY KEY, -- DEFAULT nextval('media_id_seq'),
+    source TEXT NOT NULL UNIQUE, -- URI or special identifier
+    source_type INTEGER NOT NULL REFERENCES source_types(id),
+    thumbnail_uri TEXT,
+    group_id INTEGER REFERENCES medias(id) -- for grouping related media (e.g. video and its thumbnail)
 );
 
 ------------------------------------------------------------------------- Tag Types
 CREATE TABLE tag_types (
-    id integer PRIMARY KEY,
-    description text NOT NULL
+    id INTEGER PRIMARY KEY,
+    description TEXT NOT NULL
 );
 
 INSERT INTO tag_types (id, description) VALUES
@@ -56,79 +56,79 @@ INSERT INTO tag_types (id, description) VALUES
 ------------------------------------------------------------------------- TagSets
 -- CREATE SEQUENCE tagset_id_seq;
 CREATE TABLE tagsets (
-    id integer PRIMARY KEY, -- DEFAULT nextval('tagset_id_seq'),
-    name text NOT NULL UNIQUE,
-    tagtype_id integer NOT NULL
+    id INTEGER PRIMARY KEY, -- DEFAULT nextval('tagset_id_seq'),
+    name TEXT NOT NULL UNIQUE,
+    tagtype_id INTEGER NOT NULL
 );
 
 ------------------------------------------------------------------------- Tags
 -- CREATE SEQUENCE tag_id_seq;
 CREATE TABLE tags (
-    id integer PRIMARY KEY, -- DEFAULT nextval('tag_id_seq'),
-    tagtype_id integer NOT NULL,
-    tagset_id integer NOT NULL
+    id INTEGER PRIMARY KEY, -- DEFAULT nextval('tag_id_seq'),
+    tagtype_id INTEGER NOT NULL,
+    tagset_id INTEGER NOT NULL
 );
 
 ------------------------------------------------------------------------- Alphanumerical Tags
 CREATE TABLE alphanumerical_tags (
-    id integer PRIMARY KEY REFERENCES tags(id),
-    value text NOT NULL,
-    tagset_id integer NOT NULL REFERENCES tagsets(id),
+    id INTEGER PRIMARY KEY REFERENCES tags(id),
+    value TEXT NOT NULL,
+    tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
     UNIQUE (value, tagset_id)
 );
 
 ------------------------------------------------------------------------- Timestamp Tags
 CREATE TABLE timestamp_tags (
-    id integer PRIMARY KEY REFERENCES tags(id),
-    value timestamp without time zone NOT NULL,
-    tagset_id integer NOT NULL REFERENCES tagsets(id),
+    id INTEGER PRIMARY KEY REFERENCES tags(id),
+    value TIMESTAMP without time zone NOT NULL,
+    tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
     UNIQUE (value, tagset_id)
 );
 
 ------------------------------------------------------------------------- Time Tags
 CREATE TABLE time_tags (
-    id integer PRIMARY KEY REFERENCES tags(id),
-    value time without time zone NOT NULL,
-    tagset_id integer NOT NULL REFERENCES tagsets(id),
+    id INTEGER PRIMARY KEY REFERENCES tags(id),
+    value TIME without time zone NOT NULL,
+    tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
     UNIQUE (value, tagset_id)
 );
 
 ------------------------------------------------------------------------- Date Tags
 CREATE TABLE date_tags (
-    id integer PRIMARY KEY REFERENCES tags(id),
-    value date NOT NULL,
-    tagset_id integer NOT NULL REFERENCES tagsets(id),
+    id INTEGER PRIMARY KEY REFERENCES tags(id),
+    value DATE NOT NULL,
+    tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
     UNIQUE (value, tagset_id)
 );
 
 ------------------------------------------------------------------------- Numerical Tags
 CREATE TABLE numerical_int_tags (
-    id integer PRIMARY KEY REFERENCES tags(id),
-    value int NOT NULL,
-    tagset_id integer NOT NULL REFERENCES tagsets(id),
+    id INTEGER PRIMARY KEY REFERENCES tags(id),
+    value INTEGER NOT NULL,
+    tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
     UNIQUE (value, tagset_id)
 );
 
 ------------------------------------------------------------------------- Numerical Tags
 CREATE TABLE numerical_dec_tags (
-    id integer PRIMARY KEY REFERENCES tags(id),
-    value decimal NOT NULL,
-    tagset_id integer NOT NULL REFERENCES tagsets(id),
+    id INTEGER PRIMARY KEY REFERENCES tags(id),
+    value DECIMAL(10,5) NOT NULL,
+    tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
     UNIQUE (value, tagset_id)
 );
 
 ------------------------------------------------------------------------- JSON Tags
 CREATE TABLE json_tags (
-    id integer PRIMARY KEY REFERENCES tags(id),
-    value text NOT NULL, -- SQLite does not have a built-in JSON field
-    tagset_id integer NOT NULL REFERENCES tagsets(id),
+    id INTEGER PRIMARY KEY REFERENCES tags(id),
+    value TEXT NOT NULL, -- SQLite does not have a built-in JSON field
+    tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
     UNIQUE (value, tagset_id)
 );
 
 ------------------------------------------------------------------------- Media-Tag Relations
 CREATE TABLE taggings (
-    media_id integer NOT NULL REFERENCES medias(id),
-    tag_id integer NOT NULL REFERENCES tags(id),
+    media_id INTEGER NOT NULL REFERENCES medias(id),
+    tag_id INTEGER NOT NULL REFERENCES tags(id),
     PRIMARY KEY (media_id, tag_id)
 );
 
