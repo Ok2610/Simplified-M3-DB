@@ -1,7 +1,8 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import Enum
-from typing import Dict, List, Any, Optional
-from sqlite3 import Connection
+from typing import Dict, List, Any, Optional, Tuple
+from sqlite3 import Connection, SQLITE_LIMIT_VARIABLE_NUMBER
 
 
 class TagType(Enum):
@@ -70,6 +71,16 @@ class MediaObject():
         self.group = group
 
 
+def _sqlite_max_variables(conn: Connection, fallback: int = 999) -> int:
+    """
+    Returns SQLite's variable limit when available (Python 3.11+), otherwise fallback.
+    """
+    try:
+        return conn.getlimit(SQLITE_LIMIT_VARIABLE_NUMBER)  # type: ignore[attr-defined]
+    except Exception:
+        return fallback
+
+
 def add_tagsets(connection: Connection, tagsets: List[Tagset], ignore_existing: bool = False):
     cursor = None
     try:
@@ -123,14 +134,17 @@ def add_tags(connection: Connection, tags: Tags):
 
         # The bulk insert via the transaction ensures that all inserted tag ids are in a sequence
         tag_ids = list(range(res - len(tags.tags) + 1, res + 1))
-
+        print(f"Tagset: {tags.tagset_name}, tag_ids: ({tag_ids[0]}:{tag_ids[-1]})")
+        values = tags.tags
+        if TagType.get_tagtype_name_by_value(tagtype_id) == TagType.NUMERICAL_DEC.name:
+            values = [Decimal(val) for val in  tags.tags]
         # Add tags to their appropriate tagtype table
         cursor.executemany(
             f"""
             INSERT INTO {TagType.get_tagtype_name_by_value(tagtype_id).lower()}_tags (id, value, tagset_id) 
             VALUES ($1, $2, $3)
             """,
-            [[tag_id, val, tagset_id] for tag_id, val in zip(tag_ids, tags.tags)]
+            [[tag_id, val, tagset_id] for tag_id, val in zip(tag_ids, values)]
         )
         connection.commit()
     except Exception as e:
@@ -233,31 +247,69 @@ def get_tag_ids_from_tagset_and_values(connection: Connection, tagset_name: str,
             """, 
             [tagset_name]
         ).fetchone()
+
         if res is None:
             print(f'"{tagset_name}" tagset not found, skipping...')
             return {}
+
         tagset_id, tagtype_id = res
 
-        # Get tag ids for the given tagset and values
-        values_placeholders = ','.join(['?'] * len(tag_values))
-        tags = connection.execute(
-            f"""
-            SELECT ttg.id, ttg.value
-            FROM {TagType.get_tagtype_name_by_value(tagtype_id).lower()}_tags ttg 
-            WHERE ttg.tagset_id = ?
-              AND ttg.value IN ({values_placeholders})
-            """,
-            [tagset_id, *tag_values]
-        ).fetchall()
+        attr = 'TEXT'
+        tagtype = TagType.get_tagtype_name_by_value(tagtype_id)
+        if  tagtype == TagType.DATE.name:
+            attr = 'DATE'
+        elif  tagtype == TagType.TIME.name:
+            attr = 'TIME'
+        elif  tagtype == TagType.TIMESTAMP.name:
+            attr = 'TIMESTAMP'
+        elif  tagtype == TagType.NUMERICAL_INT.name:
+            attr = 'INTEGER'
+        elif  tagtype == TagType.NUMERICAL_DEC.name:
+            print(f'Converting to Decimal for {tagset_name} ({tagset_id})')
+            tag_values = [Decimal(val) for val in tag_values]
+            attr = 'DECIMAL(10,5)'
 
-        # Return a dictionary mapping (tagset_name, tag_value) to tag_id
-        if tags != []:
-            return { (tagset_name, t[1]): t[0] for t in tags }
-        else:
+        table = f"{tagtype.lower()}_tags" 
+        tmp_table = f"tmp_{tagtype.lower()}_tag_values"
+
+        cur = connection.cursor()
+        try:
+            cur.execute(
+                f"""
+                CREATE TEMP TABLE IF NOT EXISTS {tmp_table} (
+                    value {attr} PRIMARY KEY
+                ) WITHOUT ROWID
+                """
+            )
+
+            cur.execute(f"DELETE FROM {tmp_table}")
+
+            cur.executemany(
+                f"INSERT OR IGNORE INTO {tmp_table} VALUES (?)",
+                ((v,) for v in tag_values)
+            )
+
+            found_tags = cur.execute(
+                f"""
+                SELECT ttg.id, ttg.value
+                FROM {table} ttg 
+                JOIN {tmp_table} tv ON tv.value = ttg.value
+                WHERE ttg.tagset_id = ?
+                """,
+                [tagset_id]
+            ).fetchall()
+
+            if found_tags:
+                return {(tagset_name, value): tag_id for tag_id, value in found_tags}
+
             print(f'No tag(s) found for "{tagset_name}" tagset, skipping...')
             return {}
+
+        finally:
+            cur.close()
+
     except Exception as e:
-        print("(SDL.get_tag_ids_from_tagset_with_values): ", e)
+        print(f"(SDL.get_tag_ids_from_tagset_with_values) {tagset_name} ({len(tag_values)}):", e)
 
 
 def add_media_taggings(connection: Connection, media_tag_mappings: List[dict]):
