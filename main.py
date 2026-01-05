@@ -36,6 +36,8 @@ def add_tagsets_from_json(db_file: Path, tagsets_f: Path, ignore_existing: bool 
     - db_file: Path to the sqlite3 database file.
     - tagsets_f: Path to the JSON file containing tagsets.
 
+    NOTE: We recommend not using numerical_dec with SQLite3, in the future support will come for Postgres to better utilize Decimals 
+
     Example JSON format:
     [
         {"name": "Tagset1", "tagtype": "alphanumerical", "tags": []},
