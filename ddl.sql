@@ -116,6 +116,15 @@ CREATE TABLE numerical_dec_tags (
     tagset_id integer NOT NULL REFERENCES tagsets(id),
     UNIQUE (value, tagset_id)
 );
+
+------------------------------------------------------------------------- JSON Tags
+CREATE TABLE json_tags (
+    id integer PRIMARY KEY REFERENCES tags(id),
+    value text NOT NULL, -- SQLite does not have a built-in JSON field
+    tagset_id integer NOT NULL REFERENCES tagsets(id),
+    UNIQUE (value, tagset_id)
+);
+
 ------------------------------------------------------------------------- Media-Tag Relations
 CREATE TABLE taggings (
     media_id integer NOT NULL REFERENCES medias(id),
