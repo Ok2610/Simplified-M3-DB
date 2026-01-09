@@ -2,8 +2,8 @@
     {
         "media_source": "video_1.mp4",
         "tagsets": {
-            "Start (milli)": [0],
-            "End (milli)": [180000],
+            "Start (ms)": [0],
+            "End (ms)": [180000],
             "User Tags": ["cycle", "sport", "crazy stunts"],
             "Categories": ["sport"],
             "Day": [1],
@@ -15,8 +15,8 @@
     {
         "media_source": "image_1.jpg",
         "tagsets": {
-            "Start (milli)": [5000],
-            "End (milli)": [5000],
+            "Start (ms)": [5000],
+            "End (ms)": [5000],
             "Objects": ["person", "cycle", "ramp"],
             "Caption": ["Person on a bicycle performing a stunt"],
             "Clip_Index_Id": [23],
@@ -26,8 +26,8 @@
     {
         "media_source": "transcript_text_1",
         "tagsets": {
-            "Start (milli)": [2000],
-            "End (milli)": [12000],
+            "Start (ms)": [2000],
+            "End (ms)": [12000],
             "Text": ["Here are highlights from day one of the BMX event"],
             "Transcript_Index_Id": [0],
             "Closest_Keyframe": ["image_1.jpg"],
