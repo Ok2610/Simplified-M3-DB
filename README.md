@@ -80,13 +80,15 @@ Notice that tags can be an empty array, since tags can be added and expanded lat
 // Tagging Object 
 {
     "media_src": "video_1.mp4",
-    "Start (sec)": [0],
-    "End (sec)": [180],
-    "User Tags": ["cycle", "sport", "crazy stunts"],
-    "Categories": ["sport"],
-    "Day": [1],
-    "Caption": ["Highlights of a sports event showcasing BMX stunts"],
-    "Segment_Caption_Index_Id": [0] // could also create segment captions as own media similar to transcripts
+    "tagsets": {
+      "Start (sec)": [0],
+      "End (sec)": [180],
+      "User Tags": ["cycle", "sport", "crazy stunts"],
+      "Categories": ["sport"],
+      "Day": [1],
+      "Caption": ["Highlights of a sports event showcasing BMX stunts"],
+      "Segment_Caption_Index_Id": [0] // could also create segment captions as own media similar to transcripts
+    }
 }
 ```
 
@@ -104,12 +106,14 @@ Notice that tags can be an empty array, since tags can be added and expanded lat
 // Tagging Object
 {
     "media_src": "image_1.jpg",
-    "Start (sec)": [5],
-    "End (sec)": [5],
-    "Objects": ["person", "cycle", "ramp"],
-    "Caption": ["Person on a bicycle performing a stunt"],
-    "Clip_Index_Id": [23],
-    "Caption_KF_Index_Id": [12]
+    "tagsets": {
+      "Start (sec)": [5],
+      "End (sec)": [5],
+      "Objects": ["person", "cycle", "ramp"],
+      "Caption": ["Person on a bicycle performing a stunt"],
+      "Clip_Index_Id": [23],
+      "Caption_KF_Index_Id": [12]
+    }
 }
 ```
 
@@ -127,11 +131,13 @@ Notice that tags can be an empty array, since tags can be added and expanded lat
 // Tagging Object
 {
     "media_src": "transcript_text_1",
-    "Start (sec)": [2],
-    "End (sec)": [12],
-    "Transcript": ["Here are highlights from day one of the BMX event"],
-    "Transcript_Index_Id": [0],
-    "Closest_Keyframe": ["image_1.jpg"] // Can precompute this, but also possible to do via function
+    "tagsets": {
+      "Start (sec)": [2],
+      "End (sec)": [12],
+      "Transcript": ["Here are highlights from day one of the BMX event"],
+      "Transcript_Index_Id": [0],
+      "Closest_Keyframe": ["image_1.jpg"] // Can precompute this, but also possible to do via function
+    }
 }
 ```
 
