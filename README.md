@@ -53,13 +53,13 @@ Notice that tags can be an empty array, since tags can be added and expanded lat
 
 ```json
 // Tags Object
-{ "name": "Objects", "values": ["person", "cycle", "ramp"] }
+{ "tagset_name": "Objects", "tags": ["person", "cycle", "ramp"] }
 
 // Tag List format
 [
-    { "name": "User Tags": ["cycle", "sport", "crazy stunts"] },
-    { "name": "Text": ["Here are highlights from day one of the BMX event"] },
-    { "name": "Caption": ["Highlights of a sports event showcasing BMX stunts", "Person on a bicycle performing a stunt"] }
+    { "tagset_name": "User Tags", "tags": ["cycle", "sport", "crazy stunts"] },
+    { "tagset_name": "Text", "tags" : ["Here are highlights from day one of the BMX event"] },
+    { "tagset_name": "Caption", "tags" : ["Highlights of a sports event showcasing BMX stunts", "Person on a bicycle performing a stunt"] }
 ]
 ```
 ### Medias and Taggings
