@@ -57,9 +57,9 @@ Notice that tags can be an empty array, since tags can be added and expanded lat
 
 // Tag List format
 [
-    { "name": "User Tags": ["cycle", "sport", "crazy stunts"],
-    { "name": "Text": ["Here are highlights from day one of the BMX event"],
-    { "name": "Caption": ["Highlights of a sports event showcasing BMX stunts", "Person on a bicycle performing a stunt"]
+    { "name": "User Tags": ["cycle", "sport", "crazy stunts"] },
+    { "name": "Text": ["Here are highlights from day one of the BMX event"] },
+    { "name": "Caption": ["Highlights of a sports event showcasing BMX stunts", "Person on a bicycle performing a stunt"] }
 ]
 ```
 ### Medias and Taggings
