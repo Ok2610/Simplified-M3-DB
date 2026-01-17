@@ -64,6 +64,8 @@ Notice that tags can be an empty array, since tags can be added and expanded lat
 ```
 ### Medias and Taggings
 
+**NOTE: The corresponding JSON files of these expect a JSON array of the following objects** 
+
 #### Videos
 
 ```json
