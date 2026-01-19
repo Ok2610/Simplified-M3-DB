@@ -1,3 +1,15 @@
+DROP INDEX IF EXISTS idx_alphanumerical_tagset_id_value;
+DROP INDEX IF EXISTS idx_timestamp_tagset_id_value;
+DROP INDEX IF EXISTS idx_time_tagset_id_value;
+DROP INDEX IF EXISTS idx_date_tagset_id_value;
+DROP INDEX IF EXISTS idx_numerical_int_tagset_id_value;
+DROP INDEX IF EXISTS idx_numerical_dec_tagset_id_value;
+DROP INDEX IF EXISTS idx_json_tagset_id_value;
+
+DROP INDEX IF EXISTS idx_taggings_media_id;
+DROP INDEX IF EXISTS idx_taggings_tag_id;
+
+
 DROP TABLE IF EXISTS taggings;
 DROP TABLE IF EXISTS numerical_int_tags;
 DROP TABLE IF EXISTS numerical_dec_tags;
@@ -133,6 +145,11 @@ CREATE TABLE taggings (
 );
 
 ------------------------------------------------------------------------- INDEXES
+-- NOTE: If bulk insertion takes too long: 
+-- 1. DROP the indexes 
+-- 2. Insert data 
+-- 3. Create the indexes again
+
 CREATE INDEX idx_alphanumerical_tagset_id_value ON alphanumerical_tags(tagset_id, value);
 CREATE INDEX idx_timestamp_tagset_id_value ON timestamp_tags(tagset_id, value);
 CREATE INDEX idx_time_tagset_id_value ON time_tags(tagset_id, value);
