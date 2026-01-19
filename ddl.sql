@@ -132,3 +132,15 @@ CREATE TABLE taggings (
     PRIMARY KEY (media_id, tag_id)
 );
 
+------------------------------------------------------------------------- INDEXES
+CREATE INDEX idx_alphanumerical_tagset_id_value ON alphanumerical_tags(tagset_id, value);
+CREATE INDEX idx_timestamp_tagset_id_value ON timestamp_tags(tagset_id, value);
+CREATE INDEX idx_time_tagset_id_value ON time_tags(tagset_id, value);
+CREATE INDEX idx_date_tagset_id_value ON date_tags(tagset_id, value);
+CREATE INDEX idx_numerical_int_tagset_id_value ON numerical_int_tags(tagset_id, value);
+CREATE INDEX idx_numerical_dec_tagset_id_value ON numerical_dec_tags(tagset_id, value);
+CREATE INDEX idx_json_tagset_id_value ON json_tags(tagset_id, value);
+
+CREATE INDEX idx_taggings_media_id ON taggings(media_id);
+CREATE INDEX idx_taggings_tag_id ON taggings(tag_id);
+
