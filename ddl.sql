@@ -161,3 +161,5 @@ CREATE INDEX idx_json_tagset_id_value ON json_tags(tagset_id, value);
 CREATE INDEX idx_taggings_media_id ON taggings(media_id);
 CREATE INDEX idx_taggings_tag_id ON taggings(tag_id);
 
+CREATE INDEX idx_medias_group_id ON medias(group_id);
+
