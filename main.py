@@ -19,6 +19,7 @@ def initdb(dbname: str, ddl_file: Path):
         raise FileNotFoundError(f"DDL file not found: {ddl_file}")
     
     with sqlite3.connect(f'{dbname}.db') as connection:
+        connection.execute("PRAGMA foreign_keys = ON")
         with open(ddl_file, 'r') as f:
             ddl_script = f.read()
             connection.executescript(ddl_script)
@@ -59,10 +60,11 @@ def add_tagsets_from_json(db_file: Path, tagsets_f: Path, ignore_existing: bool 
                     sdl.Tagset(
                         ts['name'], 
                         sdl.TagType[ts['tagtype'].upper()],
-                        sdl.Tags(ts['name'], ts['tags'])
+                        sdl.Tags(ts['name'], list(dict.fromkeys(ts['tags'])))
                     )
                 )
             with sqlite3.connect(db_file, autocommit=False) as connection:
+                connection.execute("PRAGMA foreign_keys = ON")
                 sdl.add_tagsets(connection, tagsets_data, ignore_existing)
     except Exception as e:
         print("Error loading tagsets from JSON:", e)
@@ -97,10 +99,11 @@ def add_tags_from_json(db_file: Path, tags_file: Path):
                 tags_data.append(
                     sdl.Tags(
                         tg['tagset_name'], 
-                        tg['tags']
+                        list(dict.fromkeys(tg['tags']))
                     )
                 )
             with sqlite3.connect(db_file, autocommit=False) as connection:
+                connection.execute("PRAGMA foreign_keys = ON")
                 for tags in tags_data:
                     sdl.add_tags(connection, tags)
     except Exception as e:
@@ -153,6 +156,7 @@ def add_medias_from_json(db_file: Path, medias_file: Path, ignore_existing: bool
                     )
                 )
             with sqlite3.connect(db_file, autocommit=False) as connection:
+                connection.execute("PRAGMA foreign_keys = ON")
                 sdl.add_medias(connection, medias_data, ignore_existing)
     except Exception as e:
         print("Error loading media objects from JSON:", e)
@@ -173,7 +177,7 @@ def add_media_taggings_from_json(db_file: Path, taggings_file: Path):
     [
         {
             "media_source": "media_src_path.mp4/jpg/text",
-            "tags": {
+            "tagsets": {
                 "Tagset1": ["tag1", "tag2"],
                 "Tagset2": [1, 2, 3, 4]
             }
@@ -190,6 +194,7 @@ def add_media_taggings_from_json(db_file: Path, taggings_file: Path):
         with open(taggings_file, 'r') as f:
             taggings_data = json.load(f)
             with sqlite3.connect(db_file, autocommit=False) as connection:
+                connection.execute("PRAGMA foreign_keys = ON")
                 sdl.add_media_taggings(connection, taggings_data)
     except Exception as e:
         print("Error loading media taggings from JSON:", e) 

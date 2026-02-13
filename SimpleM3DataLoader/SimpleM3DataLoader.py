@@ -35,9 +35,9 @@ class Tags():
 class Tagset():
     name: str
     tagtype: TagType
-    tags: List[Tags]
+    tags: Tags
 
-    def __init__(self, name: str, tagtype: TagType, tags: List[Tags]):
+    def __init__(self, name: str, tagtype: TagType, tags: Tags):
         self.name = name
         self.tagtype = tagtype
         self.tags = tags
@@ -94,10 +94,11 @@ def add_tagsets(connection: Connection, tagsets: List[Tagset], ignore_existing: 
             """,
             [(tagset.name, tagset.tagtype.value) for tagset in tagsets]
         )
+
+        # Checkpoint: commit tagsets first to make ingestion resumable.
+        # If a later step fails, rerun tag insertion; existing tagsets can be skipped via --ignore-existing.
         connection.commit()
         # cursor.execute("COMMIT")
-        cursor.close()
-
         for tagset in tagsets:
             if len(tagset.tags.tags) > 0:
                 print(f'Adding tags for tagset: {tagset.name}...')
@@ -122,27 +123,31 @@ def add_tags(connection: Connection, tags: Tags):
             [tags.tagset_name]
         ).fetchone()
 
+        existing = get_tag_id_map_for_tagset_values(connection, tags.tagset_name, tags.tags) or {}
+        existing_values = {v for (_, v) in existing.keys()}
+        new_values = [v for v in tags.tags if v not in existing_values]
+
         # Add to tags to the table and get the id of the last inserted tag
         cursor.executemany(
             """
             INSERT INTO tags (tagset_id, tagtype_id)
             VALUES (?, ?)
             """,
-            [[tagset_id, tagtype_id] for _ in range(len(tags.tags))]
+            [[tagset_id, tagtype_id] for _ in range(len(new_values))]
         ) 
         res = cursor.execute("SELECT last_insert_rowid()").fetchone()[0]
 
         # The bulk insert via the transaction ensures that all inserted tag ids are in a sequence
-        tag_ids = list(range(res - len(tags.tags) + 1, res + 1))
+        tag_ids = list(range(res - len(new_values) + 1, res + 1))
         print(f"Tagset: {tags.tagset_name}, tag_ids: ({tag_ids[0]}:{tag_ids[-1]})")
-        values = tags.tags
+        values = new_values
         if TagType.get_tagtype_name_by_value(tagtype_id) == TagType.NUMERICAL_DEC.name:
-            values = [Decimal(val) for val in  tags.tags]
+            values = [Decimal(val) for val in  new_values]
         # Add tags to their appropriate tagtype table
         cursor.executemany(
             f"""
             INSERT INTO {TagType.get_tagtype_name_by_value(tagtype_id).lower()}_tags (id, value, tagset_id) 
-            VALUES ($1, $2, $3)
+            VALUES (?, ?, ?)
             """,
             [[tag_id, val, tagset_id] for tag_id, val in zip(tag_ids, values)]
         )
@@ -196,8 +201,8 @@ def add_medias(
                     """,
                     [grp_mo.source, grp_mo.source_type.value, grp_mo.thumbnail]
                 ).fetchone()[0]
-                connection.commit()
-            except:
+            except Exception as e:
+                print(f"(SDL.add_medias) Error adding group leader media object ({grp_mo.source}): ", e)
                 group_id = cursor.execute("SELECT id FROM medias WHERE source = ?", [grp_mo.source]).fetchone()[0]
 
             added.add(grp_mo.source)
@@ -237,7 +242,7 @@ def add_medias(
             cursor.close()
 
 
-def get_tag_ids_from_tagset_and_values(connection: Connection, tagset_name: str, tag_values: List[Any]) -> dict:
+def get_tag_id_map_for_tagset_values(connection: Connection, tagset_name: str, tag_values: List[Any]) -> dict[Tuple[str, Any], int]:
     try:
         res = connection.execute(
             """
@@ -309,7 +314,7 @@ def get_tag_ids_from_tagset_and_values(connection: Connection, tagset_name: str,
             cur.close()
 
     except Exception as e:
-        print(f"(SDL.get_tag_ids_from_tagset_with_values) {tagset_name} ({len(tag_values)}):", e)
+        print(f"(SDL.get_tag_id_map_for_tagset_values) {tagset_name} ({len(tag_values)}):", e)
 
 
 def add_media_taggings(connection: Connection, media_tag_mappings: List[dict]):
@@ -359,7 +364,7 @@ def add_media_taggings(connection: Connection, media_tag_mappings: List[dict]):
         print("(SDL.add_media_taggings): Step 2)")
         tag_mapping = {}
         for tagset_name, tag_values in tagset_to_values.items():
-            tag_ids = get_tag_ids_from_tagset_and_values(connection, tagset_name, list(tag_values))
+            tag_ids = get_tag_id_map_for_tagset_values(connection, tagset_name, list(tag_values))
             tag_mapping.update(tag_ids)
 
         # Step 3: Create list of taggings and bulk insert
@@ -375,7 +380,7 @@ def add_media_taggings(connection: Connection, media_tag_mappings: List[dict]):
 
         cursor.executemany(
             """
-            INSERT INTO taggings (media_id, tag_id)
+            INSERT OR IGNORE INTO taggings (media_id, tag_id)
             VALUES (?, ?)
             """,
             taggings
