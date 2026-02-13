@@ -53,7 +53,7 @@ CREATE TABLE medias (
 ------------------------------------------------------------------------- Tag Types
 CREATE TABLE tag_types (
     id INTEGER PRIMARY KEY,
-    description TEXT NOT NULL
+    description TEXT NOT NULL UNIQUE
 );
 
 INSERT INTO tag_types (id, description) VALUES
@@ -70,7 +70,8 @@ INSERT INTO tag_types (id, description) VALUES
 CREATE TABLE tagsets (
     id INTEGER PRIMARY KEY, -- DEFAULT nextval('tagset_id_seq'),
     name TEXT NOT NULL UNIQUE,
-    tagtype_id INTEGER NOT NULL
+    tagtype_id INTEGER NOT NULL REFERENCES tag_types(id),
+    UNIQUE (id, tagtype_id)
 );
 
 ------------------------------------------------------------------------- Tags
@@ -78,7 +79,8 @@ CREATE TABLE tagsets (
 CREATE TABLE tags (
     id INTEGER PRIMARY KEY, -- DEFAULT nextval('tag_id_seq'),
     tagtype_id INTEGER NOT NULL,
-    tagset_id INTEGER NOT NULL
+    tagset_id INTEGER NOT NULL,
+    FOREIGN KEY (tagset_id, tagtype_id) REFERENCES tagsets(id, tagtype_id)
 );
 
 ------------------------------------------------------------------------- Alphanumerical Tags
@@ -160,4 +162,4 @@ CREATE INDEX idx_json_tagset_id_value ON json_tags(tagset_id, value);
 
 CREATE INDEX idx_taggings_media_id ON taggings(media_id);
 CREATE INDEX idx_taggings_tag_id ON taggings(tag_id);
-
+CREATE INDEX idx_medias_group_id ON medias(group_id);
