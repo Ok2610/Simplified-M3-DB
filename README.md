@@ -1,50 +1,34 @@
-# Simplified Multi-dimensional Media Model
+# Simplified Multi-dimensional Media Model (M<sup>3</sup>)
 
 A structured SQLite database for storing multimedia metadata.
-This is a simplified version of the multi-dimensional media model (![Paper](https://dl.acm.org/doi/pdf/10.1145/3549555.3549558)).
+This is a simplified version of the multi-dimensional media model M<sup>3</sup> (pronounced emm-cube) (![Paper](https://dl.acm.org/doi/pdf/10.1145/3549555.3549558)).
 
-This repository defines a database schema and an import process for organizing media and attaching structured metadata to it. It is meant to serve as a stable foundation within a larger workflow — not as a standalone application.
+This loader populates a structured metadata database for media objects. The goal of the model is simple: represent media entities and attach well-defined, typed metadata to them in a consistent way.
 
-You provide metadata in JSON files. The database is initialized and populated from those files into a consistent, queryable structure.
+You provide your media collection data in JSON files (in the format specified below), and the database is initialized and populated from those files into a consistent, queryable structure.
 
 ## The Model
 
-Every asset is stored in the `medias` table and assigned an **integer ID**.
+A media is a record that represents a single media entity (image, video, audio, text, or other). It includes a source field that acts as an identifier or reference, and a source_type that defines what kind of media it is. The group_id field allows media objects to be related to each other, for example linking a video to its keyframes.
 
-A media entry includes:
+Metadata is organized in three layers:
 
-* A unique `source` (URI or identifier)
-* A `source_type` (Image, Video, Audio, Text, or Other)
-* An optional `thumbnail_uri`
-* An optional `group_id` for linking related media
+* A tagset is a metadata category (for example, "Day", "Objects", "Categories", "Title").
+* A tag is a specific value within that category (for example, "Monday" under "Day", or "Car" under "Objects").
+* A tagtype defines the data format of the tag value (text, integer, decimal, date, timestamp, time, or JSON).
 
-This allows media items to stand on their own while still supporting relationships, see video and keyframe example below.
-
-Metadata fields are referred to as `tagsets`. Example of a tagset could be "Location (Country)" with tags such as "Denmark", "Netherlands", or "Iceland".
-In the full version of the M^3 model hierarchies of tagsets can be maintained, such that you could have tagset hierarchies "Country", "City", "Street", and name the hiearchy as "Location".
-Hierarchies are not supported in this simplified version.
-
-A tagset has:
-
-* A unique `name`
-* An explicit tag type such as text, integer, date, timestamp, decimal, or JSON
-
-`tags` (values in a tagset) are stored once in their respective typed tables (e.g., `alphanumerical_tags`, `numerical_int_tags`, etc.) and linked to media through a mapping table (`taggings`). This keeps the structure consistent and avoids duplication as the dataset grows.
-
----
+Full schema and constraints are defined in ddl.sql.
 
 ### Examples of Multimedia objects and their metadata
 
 #### Video
 
 ```id="videx"
-Media ID: 1001
 Source: "s3://videos/traffic.mp4"
 Source Type: Video
-
   ├── Index ID (integer): 48219
-  ├── Title (text): "Downtown Traffic Scene"
-  ├── Category (text): "Urban"
+  ├── Title (alphanumerical): "Downtown Traffic Scene"
+  ├── Category (alphanumerical): "Urban"
   ├── Upload Date (date): 2026-02-10
   ├── Objects (alphanumerical): ["car", "person"]
 ```
@@ -54,11 +38,8 @@ Source Type: Video
 #### Keyframe
 
 ```id="kfex"
-Media ID: 2050
 Source: "s3://videos/traffic_frame_120000.jpg"
 Source Type: Image
-Parent (group_id): 1001
-
   ├── Index ID (integer): 48219
   ├── Start (ms) (integer): 120000
   ├── End (ms) (integer): 127000
@@ -66,10 +47,23 @@ Parent (group_id): 1001
   ├── Objects (alphanumerical): ["car"]
 ```
 
-The keyframe is a separate media entry that references the video through `group_id`. Fields such as `Keyframe (ms)` typically describe its position within the video, while `Start (ms)` and `End (ms)` could mean it represents a segment, but the schema itself remains neutral, as in, it stores structured data without imposing meaning. 
+This example shows a video media object and a keyframe associated with that video.
 
-These metadata fields would be translated into Tagsets in the M^3 model and their values into tags with the appropriate type.
+In the database (M<sup>3</sup> model) these two media objects will be represented in the following way:
 
+* 2 media rows
+  - One row for the video (source type: Video)
+  - One row for the keyframe image (source type: Image)
+  - The keyframe row references the video through group_id
+
+* Multiple tagsets (metadata categories)
+  - "Index ID", "Start (ms)", "End (ms)", "Keyframe (ms)" as tagsets with type `numerical_int`
+  - "Title", "Category", "Objects" as tagsets with type `alphanumerical`
+  - "Upload Date" as tagset with type `date`
+
+* Tags / actual values of the tagsets will be added to their respective typed tag table
+
+* Tags are then linked with medias through their ids (media_id, tag_id)  
 
 ---
 
@@ -214,7 +208,7 @@ Below are a handful of examples of different media and tagging JSON objects for 
 }
 ```
 
-### Example running Simplified-M3-DB with the 4 required files
+### How to use Simplified-M3-DB with the 4 required JSON files
 
 **Initialize Database**
 
@@ -280,20 +274,20 @@ SELECT tset.id, tset.name
 FROM taggings tgs
 JOIN tags t ON tgs.tag_id = t.id 
 JOIN tagsets tset ON tset.id = t.tagset_id
-WHERE tgs.id = 1234
+WHERE tgs.media_id = 1234
 ```
 
 ```SQL
 -- Get all media ids, source URI's, and thumbnail URI's of keyframes belonging to video "Trip to Europe 2026"
 -- NOTE that there is an assumption that a tagset exists called "Title"
-WITH (
+WITH video_media_id AS (
 SELECT m.id as video_id
 FROM tagsets tset
 JOIN alphanumerical_tags at ON tset.id = at.tagset_id
 JOIN taggings tgs ON tgs.tag_id = at.id
 WHERE tset.name = "Title"
 AND at.value = "Trip to Europe 2026"
-) video_media_id,
+),
 SELECT m.id, m.source, m.thumbnail_uri
 FROM medias m
 WHERE m.group_id = (SELECT video_id FROM video_media_id)
@@ -302,14 +296,14 @@ WHERE m.group_id = (SELECT video_id FROM video_media_id)
 ```SQL
 -- Get all media objects uploaded before 2026-01-01
 -- NOTE: Assumes there exists a tagset named "Upload Date"
-WITH (
+WITH before_media_ids AS (
 SELECT m.id as bef_id
 FROM tagsets tset
 JOIN date_tags dt ON tset.id = dt.tagset_id
 JOIN taggings tgs ON tgs.tag_id = dt.id
 WHERE tset.name = "Upload Date"
-AND at.value < "2026-01-01"
-) before_media_ids,
+AND dt.value < "2026-01-01"
+),
 SELECT *
 FROM medias m
 WHERE m.id IN (SELECT bef_id FROM before_media_ids)
@@ -320,13 +314,13 @@ WHERE m.id IN (SELECT bef_id FROM before_media_ids)
 ```SQL
 -- Get all media objects uploaded before 2026-01-01 from "Denmark" or "Netherlands"
 -- NOTE: Assumes there exists a tagset named "Upload Date" and "Location (Country)"
-WITH (
+WITH upl_loc_ids AS (
 SELECT m.id 
 FROM tagsets tset
 JOIN date_tags dt ON tset.id = dt.tagset_id
 JOIN taggings tgs ON tgs.tag_id = dt.id
 WHERE tset.name = "Upload Date"
-AND at.value < "2026-01-01"
+AND dt.value < "2026-01-01"
 INTERSECT
 SELECT m.id
 FROM tagsets tset
@@ -334,7 +328,7 @@ JOIN alphanumerical_tags at ON tset.id = at.tagset_id
 JOIN taggings tgs ON tgs.tag_id = at.id
 WHERE tset.name = "Location (Country)"
 AND at.value IN ("Denmark", "Netherlands")
-) upl_loc_ids,
+),
 SELECT *
 FROM medias m
 WHERE m.id IN (SELECT id FROM upl_loc_ids)
@@ -364,7 +358,6 @@ The simplified version of the multi-dimensional database consists of the followi
   - source_type refers to the ID of a source_type table with the types being: Image, Video, Audio, Text, and Other.
   - The source is the URI to the media, and the thumbnail_uri is an optional field to add an image representation of the media.
   - Group_id refers to another media objects id, making it possible to have one media related to many others, for instance a video media object having many keyframe image media objects.
-
 
 * Source types: (ID, name)
   - The type of the media
