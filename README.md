@@ -1,7 +1,7 @@
 # Simplified Multi-dimensional Media Model
 
 A structured SQLite database for storing multimedia metadata.
-This is a simplified version of the multi-dimensional media model ((ViRMA)![https://dl.acm.org/doi/pdf/10.1145/3549555.3549558]).
+This is a simplified version of the multi-dimensional media model (![Paper](https://dl.acm.org/doi/pdf/10.1145/3549555.3549558)).
 
 This repository defines a database schema and an import process for organizing media and attaching structured metadata to it. It is meant to serve as a stable foundation within a larger workflow — not as a standalone application.
 
@@ -342,7 +342,7 @@ WHERE m.id IN (SELECT id FROM upl_loc_ids)
 
 ## Model ER Diagram and Table Definitions
 
-()![Entities.png]
+![ER Diagram](Entities.png)
 
 The simplified version of the multi-dimensional database consists of the following schema.
 
