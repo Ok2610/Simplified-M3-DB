@@ -203,7 +203,7 @@ Below are a handful of examples of different media and tagging JSON objects for 
       "End (sec)": [12],
       "Transcript": ["Here are highlights from day one of the BMX event"],
       "Transcript_Index_Id": [0],
-      "Closest_Keyframe": ["image_1.jpg"] // Can precompute this, but also possible to do via function
+      "Closest_Keyframe": ["image_1.jpg"]
     }
 }
 ```
