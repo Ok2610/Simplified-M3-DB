@@ -1,7 +1,7 @@
 # Simplified Multi-dimensional Media Model (M<sup>3</sup>)
 
 A structured SQLite database for storing multimedia metadata.
-This is a simplified version of the multi-dimensional media model M<sup>3</sup> (pronounced emm-cube) ([Paper1](https://dl.acm.org/doi/10.1145/3549555.354955), [Paper2](https://dl.acm.org/doi/abs/10.1145/3512527.3531352)).
+This is a simplified version of the multi-dimensional media model M<sup>3</sup> (pronounced emm-cube) ([Paper1](https://dl.acm.org/doi/abs/10.1145/3549555.3549558), [Paper2](https://dl.acm.org/doi/abs/10.1145/3512527.3531352)).
 
 This loader populates a structured metadata database for media objects. The goal of the model is simple: represent media entities and attach well-defined, typed metadata to them in a consistent way.
 
