@@ -209,3 +209,6 @@ __marimo__/
 dbs/
 
 example/example.db
+
+# MacOS
+.DS_Store
