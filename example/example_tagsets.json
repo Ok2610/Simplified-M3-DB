@@ -25,5 +25,5 @@
     { "name": "Person", "tagtype": "alphanumerical", "tags": [] },
     { "name": "Objects", "tagtype": "alphanumerical", "tags": [] },
     { "name": "Categories", "tagtype": "alphanumerical", "tags": [] },
-    { "name": "User Tags", "tagtype": "alphanumerical", "tags": [] },
+    { "name": "User Tags", "tagtype": "alphanumerical", "tags": [] }
 ]
