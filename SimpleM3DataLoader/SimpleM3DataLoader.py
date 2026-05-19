@@ -82,6 +82,14 @@ def _sqlite_max_variables(conn: Connection, fallback: int = 999) -> int:
 
 
 def add_tagsets(connection: Connection, tagsets: List[Tagset], ignore_existing: bool = False):
+    """
+    Add tagsets and their associated tags to the database.
+    
+    Parameters:
+    - connection: sqlite3.Connection object to the database.
+    - tagsets: List of Tagset objects to be added.
+    - ignore_existing: If True, existing tagsets will be ignored.
+    """
     cursor = None
     try:
         ignore_existing_clause = "OR IGNORE" if ignore_existing else ""
@@ -115,6 +123,13 @@ def add_tagsets(connection: Connection, tagsets: List[Tagset], ignore_existing: 
 
 
 def add_tags(connection: Connection, tags: Tags):
+    """
+    Add tags to an existing tagset in the database.
+    
+    Parameters:
+    - connection: sqlite3.Connection object to the database.
+    - tags: Tags object containing the tagset name and list of tag values to be added
+    """
     cursor = None
     try:
         cursor = connection.cursor()
@@ -166,6 +181,15 @@ def add_medias(
     media_objects: List[MediaObject],
     ignore_existing: bool = False
 ):
+    """
+    Add media objects (video, image, etc.) to the database.
+    
+    Parameters:
+    - connection: sqlite3.Connection object to the database.
+    - media_objects: List of MediaObject objects to be added. 
+                     Media objects can optionally belong to a group (e.g. video segments from the same video).
+    - ignore_existing: If True, existing media objects will be ignored.
+    """
     cursor = None
     try:
         # Groups are essentially a leader-member relationship where objects without a group are potential leaders
@@ -242,8 +266,23 @@ def add_medias(
             cursor.close()
 
 
-def get_tag_id_map_for_tagset_values(connection: Connection, tagset_name: str, tag_values: List[Any]) -> dict[Tuple[str, Any], int]:
+def get_tag_id_map_for_tagset_values(
+    connection: Connection, tagset_name: str, tag_values: List[Any]
+) -> dict[Tuple[str, Any], int]:
+    """
+    Get a mapping of (tagset_name, tag_value) to tag_id for a given tagset and list of tag values.
+    
+    Parameters:
+    - connection: sqlite3.Connection object to the database.
+    - tagset_name: Name of the tagset for which to retrieve tag ids.
+    - tag_values: List of tag values for which to retrieve tag ids.
+    
+    Returns:
+    - A dictionary mapping (tagset_name, tag_value) to tag_id for the specified tagset and tag values
+    - If a tag value is not found for the given tagset, it will be skipped
+    """
     try:
+        # Get tagset id and tagtype id for the given tagset name
         res = connection.execute(
             """
             SELECT id, tagtype_id 
@@ -279,6 +318,7 @@ def get_tag_id_map_for_tagset_values(connection: Connection, tagset_name: str, t
 
         cur = connection.cursor()
         try:
+            # Create a temporary table to hold the tag values for efficient querying
             cur.execute(
                 f"""
                 CREATE TEMP TABLE IF NOT EXISTS {tmp_table} (
@@ -287,13 +327,16 @@ def get_tag_id_map_for_tagset_values(connection: Connection, tagset_name: str, t
                 """
             )
 
+            # Clear the temporary table before inserting new values
             cur.execute(f"DELETE FROM {tmp_table}")
 
+            # Bulk insert tag values into the temporary table
             cur.executemany(
                 f"INSERT OR IGNORE INTO {tmp_table} VALUES (?)",
                 ((v,) for v in tag_values)
             )
 
+            # Query to get tag ids for the given tagset and tag values by joining with the temporary table
             found_tags = cur.execute(
                 f"""
                 SELECT ttg.id, ttg.value
