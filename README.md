@@ -146,7 +146,7 @@ Below are a handful of examples of different media and tagging JSON objects for 
 
 // Tagging Object 
 {
-  "media_src": "video_1.mp4",
+  "media_source": "video_1.mp4",
   "tagsets": {
     "Start (sec)": [0],
     "End (sec)": [180],
@@ -172,7 +172,7 @@ Below are a handful of examples of different media and tagging JSON objects for 
 
 // Tagging Object
 {
-    "media_src": "image_1.jpg",
+    "media_source": "image_1.jpg",
     "tagsets": {
       "Start (sec)": [5],
       "End (sec)": [5],
@@ -197,7 +197,7 @@ Below are a handful of examples of different media and tagging JSON objects for 
 
 // Tagging Object
 {
-    "media_src": "transcript_text_1",
+    "media_source": "transcript_text_1",
     "tagsets": {
       "Start (sec)": [2],
       "End (sec)": [12],
