@@ -154,7 +154,7 @@ Below are a handful of examples of different media and tagging JSON objects for 
     "Categories": ["sport"],
     "Day": [1],
     "Caption": ["Highlights of a sports event showcasing BMX stunts"],
-    "Segment_Caption_Index_Id": [0] // could also create segment captions as own media similar to transcripts
+    "Caption Index ID": [0] // could also create segment captions as own media similar to transcripts
   }
 }
 ```
@@ -178,8 +178,8 @@ Below are a handful of examples of different media and tagging JSON objects for 
       "End (sec)": [5],
       "Objects": ["person", "cycle", "ramp"],
       "Caption": ["Person on a bicycle performing a stunt"],
-      "Clip_Index_Id": [23],
-      "Caption_KF_Index_Id": [12]
+      "CLIP Index ID": [23],
+      "Caption Index ID": [12]
     }
 }
 ```
@@ -202,8 +202,8 @@ Below are a handful of examples of different media and tagging JSON objects for 
       "Start (sec)": [2],
       "End (sec)": [12],
       "Transcript": ["Here are highlights from day one of the BMX event"],
-      "Transcript_Index_Id": [0],
-      "Closest_Keyframe": ["image_1.jpg"]
+      "Transcript Index ID": [0],
+      "Closest Keyframe": ["image_1.jpg"]
     }
 }
 ```
