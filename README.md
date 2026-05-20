@@ -108,9 +108,9 @@ Below are examples of how to create the tagsets.json file with tags and without 
   { "name": "Objects", "type": "alphanumerical", "tags": [] },
   { "name": "Text", "type": "alphanumerical", "tags": [] },
   { "name": "Closest Keyframe", "type": "alphanumerical", "tags": ["image_1.jpg"] },
-  { "name": "CLIP Index Id", "type": "numerical_int", "tags": [23] },
-  { "name": "Caption Index Id", "type": "numerical_int", "tags": [0] },
-  { "name": "Transcript Index Id", "type": "numerical_int", "tags": [0] }
+  { "name": "CLIP Index ID", "type": "numerical_int", "tags": [23] },
+  { "name": "Caption Index ID", "type": "numerical_int", "tags": [0] },
+  { "name": "Transcript Index ID", "type": "numerical_int", "tags": [0] }
 ]
 ```
 
