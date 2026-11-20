@@ -11,7 +11,7 @@ import duckdb
 from loguru import logger
 
 from m3db import M3DBError, db
-from m3db.convert import to_sqlite
+from m3db.convert import to_duckdb, to_sqlite
 from m3db.json_input import JSON_FORMATS
 from m3db.logs import LEVELS, counted, setup_logging
 from m3db.medias import add_medias
@@ -358,3 +358,21 @@ def to_sqlite_command(
     to_sqlite(duckdb_file, sqlite_file, memory_limit, threads, cache_mb)
     size_mb = sqlite_file.stat().st_size / 1e6
     logger.info(f"Wrote {sqlite_file} ({size_mb:,.0f} MB) in {perf_counter() - start:.1f} s")
+
+
+@cli.command("to-duckdb")
+@click.argument("sqlite_file", type=EXISTING_FILE)
+@click.argument("duckdb_file", type=click.Path(dir_okay=False, path_type=Path))
+@duckdb_options
+def to_duckdb_command(sqlite_file: Path, duckdb_file: Path, memory_limit: str, threads: int | None):
+    """Write the M3 database SQLITE_FILE to the new DuckDB file DUCKDB_FILE.
+
+    SQLITE_FILE may use the old schema or the one of m3db/ddl.sql. Each value is cast to
+    its DuckDB type, and DUCKDB_FILE is checked before it is committed. On any problem
+    DUCKDB_FILE is deleted.
+    """
+    logger.info(f"Copying {sqlite_file} to {duckdb_file}")
+    start = perf_counter()
+    to_duckdb(sqlite_file, duckdb_file, memory_limit, threads)
+    size_mb = duckdb_file.stat().st_size / 1e6
+    logger.info(f"Wrote {duckdb_file} ({size_mb:,.0f} MB) in {perf_counter() - start:.1f} s")
