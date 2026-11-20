@@ -17,7 +17,7 @@ Metadata is organized in three layers:
 * A tag is a specific value within that category (for example, "Monday" under "Day", or "Car" under "Objects").
 * A tagtype defines the data format of the tag value (text, integer, decimal, date, timestamp, time, or JSON).
 
-Full schema and constraints are defined in ddl.sql.
+Full schema and constraints are defined in m3db/ddl.sql.
 
 ### Examples of Multimedia objects and their metadata
 

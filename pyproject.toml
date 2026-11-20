@@ -1,10 +1,30 @@
 [project]
 name = "simplified-m3-db"
 version = "0.1.0"
-description = "Add your description here"
+description = "Load Simplified M3 JSON files into DuckDB and copy them to SQLite"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "click>=8.3.1",
     "duckdb>=2.0.1",
+    "loguru>=0.7.3",
 ]
+
+[project.scripts]
+m3db = "m3db.cli:cli"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "m3db"
+module-root = ""
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

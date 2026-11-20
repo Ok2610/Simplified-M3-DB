@@ -1,7 +1,7 @@
 rm example.db
 
 echo "Initializing example.db"
-uv run python ../main.py initdb example ../ddl.sql
+uv run python ../main.py initdb example ../m3db/ddl.sql
 
 echo "Adding tagsets"
 uv run python ../main.py add-tagsets-from-json example.db example_tagsets.json  
