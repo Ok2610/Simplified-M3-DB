@@ -209,6 +209,11 @@ __marimo__/
 dbs/
 
 example/example.db
+example/example.duckdb
+
+# DuckDB write-ahead logs and spill folders
+*.duckdb.wal
+*.tmp/
 
 # MacOS
 .DS_Store
