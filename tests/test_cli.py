@@ -1,4 +1,7 @@
-"""Tests for the m3db command group: help, log levels and errors."""
+"""Tests for the m3db command group: version, log levels, options and errors."""
+
+import tomllib
+from pathlib import Path
 
 
 def test_info_prints_a_status_line_and_no_sql(m3db, db_file):
@@ -39,3 +42,12 @@ def test_memory_options_reach_duckdb(m3db, new_db, write_json):
 
     assert "SET memory_limit = '256MB'" in result.stderr
     assert "SET threads = 1" in result.stderr
+
+
+def test_version_is_the_one_in_pyproject(m3db):
+    project = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
+
+    result = m3db("--version")
+
+    assert project["project"]["version"] == "0.2.0"
+    assert result.output.strip().endswith(project["project"]["version"])

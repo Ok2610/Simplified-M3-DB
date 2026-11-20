@@ -1,6 +1,8 @@
 """Load Simplified M3 JSON files into DuckDB and copy them to SQLite."""
 
-__version__ = "0.1.0"
+from importlib.metadata import version
+
+__version__ = version("simplified-m3-db")
 
 
 class M3DBError(Exception):

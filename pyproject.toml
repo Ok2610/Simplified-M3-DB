@@ -1,6 +1,6 @@
 [project]
 name = "simplified-m3-db"
-version = "0.1.0"
+version = "0.2.0"
 description = "Load Simplified M3 JSON files into DuckDB and copy them to SQLite"
 readme = "README.md"
 requires-python = ">=3.13"

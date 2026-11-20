@@ -130,7 +130,7 @@ wheels = [
 
 [[package]]
 name = "simplified-m3-db"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
