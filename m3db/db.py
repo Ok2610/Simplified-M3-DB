@@ -1,4 +1,6 @@
 """Open .duckdb files for loading, and run SQL with TRACE logging."""
+from collections.abc import Iterator
+from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path
 
@@ -26,6 +28,18 @@ def execute(connection: duckdb.DuckDBPyConnection, sql: str, parameters: list | 
     """Log SQL at TRACE level, then run it on CONNECTION with PARAMETERS."""
     logger.trace("SQL\n{}", sql)
     return connection.execute(sql, parameters)
+
+
+@contextmanager
+def transaction(connection: duckdb.DuckDBPyConnection) -> Iterator[None]:
+    """Run the with-block in one transaction on CONNECTION. Any error rolls back every change of the block."""
+    execute(connection, "BEGIN")
+    try:
+        yield
+    except BaseException:
+        execute(connection, "ROLLBACK")
+        raise
+    execute(connection, "COMMIT")
 
 
 def create_schema(connection: duckdb.DuckDBPyConnection) -> None:

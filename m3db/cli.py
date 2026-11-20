@@ -1,6 +1,7 @@
 """The m3db command and its subcommands."""
 import sys
 from pathlib import Path
+from time import perf_counter
 
 import click
 import duckdb
@@ -8,6 +9,9 @@ from loguru import logger
 
 from m3db import M3DBError, db
 from m3db.logs import LEVELS, setup_logging
+from m3db.tagsets import add_tags, add_tagsets
+
+EXISTING_FILE = click.Path(exists=True, dir_okay=False, path_type=Path)
 
 
 class M3DBGroup(click.Group):
@@ -52,3 +56,58 @@ def init(db_file: Path):
     with db.connect(db_file) as connection:
         db.create_schema(connection)
     logger.info(f"Created {db_file}")
+
+
+def duckdb_options(command):
+    """Add --memory-limit and --threads, the options of every command that loads data into a .duckdb file."""
+    command = click.option(
+        "--threads", type=click.IntRange(min=1),
+        help="Threads DuckDB may use. Fewer threads use less memory.  [default: all cores]",
+    )(command)
+    command = click.option(
+        "--memory-limit", default="1GB", show_default=True,
+        help="Memory DuckDB may use for data. Work over it spills to the folder DB_FILE.tmp.",
+    )(command)
+    return command
+
+
+@cli.command("add-tagsets")
+@click.argument("db_file", type=EXISTING_FILE)
+@click.argument("tagsets_json", type=EXISTING_FILE)
+@click.option("--ignore-existing", is_flag=True, help="Skip tagsets that already exist, and add only their new tags.")
+@duckdb_options
+def add_tagsets_command(db_file: Path, tagsets_json: Path, ignore_existing: bool, memory_limit: str, threads: int | None):
+    """Add the tagsets in TAGSETS_JSON and the tags listed with them to DB_FILE.
+
+    \b
+    TAGSETS_JSON is a list of tagsets, for example
+    [{"name": "People", "tagtype": "alphanumerical", "tags": ["Anna", "Bo"]}]
+
+    The tagtype is one of alphanumerical, timestamp, time, date, numerical_int, numerical_dec, json.
+    """
+    logger.info(f"Reading {tagsets_json}")
+    start = perf_counter()
+    with db.connect(db_file, memory_limit, threads) as connection:
+        tagsets_added, tags_added = add_tagsets(connection, tagsets_json, ignore_existing)
+    logger.info(f"Added {tagsets_added:,} tagsets and {tags_added:,} tags in {perf_counter() - start:.1f} s")
+
+
+
+@cli.command("add-tags")
+@click.argument("db_file", type=EXISTING_FILE)
+@click.argument("tags_json", type=EXISTING_FILE)
+@duckdb_options
+def add_tags_command(db_file: Path, tags_json: Path, memory_limit: str, threads: int | None):
+    """Add the tags in TAGS_JSON to tagsets that exist in DB_FILE.
+
+    \b
+    TAGS_JSON is a list of tag lists, for example
+    [{"tagset_name": "People", "tags": ["Cy", "Dee"]}]
+
+    A tagset may have several entries. Its new tags take IDs in file order.
+    """
+    logger.info(f"Reading {tags_json}")
+    start = perf_counter()
+    with db.connect(db_file, memory_limit, threads) as connection:
+        tags_added = add_tags(connection, tags_json)
+    logger.info(f"Added {tags_added:,} tags in {perf_counter() - start:.1f} s")
