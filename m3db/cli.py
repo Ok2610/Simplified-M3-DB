@@ -1,6 +1,7 @@
 """The m3db command and its subcommands."""
 
 import re
+import sqlite3
 import sys
 from pathlib import Path
 from time import perf_counter
@@ -10,6 +11,7 @@ import duckdb
 from loguru import logger
 
 from m3db import M3DBError, db
+from m3db.convert import to_sqlite
 from m3db.json_input import JSON_FORMATS
 from m3db.logs import LEVELS, counted, setup_logging
 from m3db.medias import add_medias
@@ -20,12 +22,13 @@ EXISTING_FILE = click.Path(exists=True, dir_okay=False, path_type=Path)
 
 
 class M3DBGroup(click.Group):
-    """A click group that prints an M3DBError or DuckDB error as one ERROR line and exits with 1."""
+    """A click group that prints an M3DBError, DuckDB error or SQLite error as one ERROR line,
+    then exits with code 1."""
 
     def invoke(self, ctx: click.Context):
         try:
             return super().invoke(ctx)
-        except (M3DBError, duckdb.Error) as error:
+        except (M3DBError, duckdb.Error, sqlite3.Error) as error:
             logger.error(explain(error))
             logger.opt(exception=error).debug("Traceback of the error above")
             sys.exit(1)
@@ -125,7 +128,7 @@ def duckdb_options(command):
         "--memory-limit",
         default="8GB",
         show_default=True,
-        help="Memory DuckDB may use for data. Work over it spills to the folder DB_FILE.tmp.",
+        help="Memory DuckDB may use for data. Work over it spills to a .tmp folder by the output.",
     )(command)
     return command
 
@@ -329,3 +332,29 @@ def add_taggings_command(
     """
     with db.connect(db_file, memory_limit, threads) as connection:
         load_taggings(connection, taggings_json)
+
+
+@cli.command("to-sqlite")
+@click.argument("duckdb_file", type=EXISTING_FILE)
+@click.argument("sqlite_file", type=click.Path(dir_okay=False, path_type=Path))
+@click.option(
+    "--cache-mb",
+    type=click.IntRange(min=1),
+    default=1024,
+    show_default=True,
+    help="SQLite page cache in MB while the indexes are built.",
+)
+@duckdb_options
+def to_sqlite_command(
+    duckdb_file: Path, sqlite_file: Path, cache_mb: int, memory_limit: str, threads: int | None
+):
+    """Write the M3 database DUCKDB_FILE to the new SQLite file SQLITE_FILE.
+
+    SQLITE_FILE gets the schema of m3db/ddl.sql with 16 KB pages. DUCKDB_FILE is checked
+    before the copy and SQLITE_FILE after it. On any problem SQLITE_FILE is deleted.
+    """
+    logger.info(f"Copying {duckdb_file} to {sqlite_file}")
+    start = perf_counter()
+    to_sqlite(duckdb_file, sqlite_file, memory_limit, threads, cache_mb)
+    size_mb = sqlite_file.stat().st_size / 1e6
+    logger.info(f"Wrote {sqlite_file} ({size_mb:,.0f} MB) in {perf_counter() - start:.1f} s")
