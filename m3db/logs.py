@@ -1,4 +1,5 @@
 """Loguru setup for the m3db command, and timing of load phases."""
+
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager

@@ -1,4 +1,5 @@
 """Tests for opening .duckdb files in m3db.db."""
+
 from m3db import db
 
 

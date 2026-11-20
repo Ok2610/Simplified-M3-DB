@@ -1,4 +1,5 @@
 """Tests for m3db init."""
+
 import re
 from importlib.resources import files
 
@@ -54,7 +55,13 @@ def test_init_fills_source_types_and_tag_types(m3db, db_file):
         tag_types = connection.execute("SELECT description FROM tag_types ORDER BY id").fetchall()
     assert [name for (name,) in source_types] == ["Image", "Video", "Audio", "Text", "Other"]
     assert [description for (description,) in tag_types] == [
-        "alphanumerical", "timestamp", "time", "date", "numerical_int", "numerical_dec", "json",
+        "alphanumerical",
+        "timestamp",
+        "time",
+        "date",
+        "numerical_int",
+        "numerical_dec",
+        "json",
     ]
 
 

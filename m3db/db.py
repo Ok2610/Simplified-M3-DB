@@ -1,4 +1,5 @@
 """Open .duckdb files for loading, and run SQL with TRACE logging."""
+
 from collections.abc import Iterator
 from contextlib import contextmanager
 from importlib.resources import files
@@ -10,7 +11,9 @@ from loguru import logger
 DUCKDB_SCHEMA = files("m3db") / "ddl_duckdb.sql"
 
 
-def connect(db_file: Path, memory_limit: str = "1GB", threads: int | None = None) -> duckdb.DuckDBPyConnection:
+def connect(
+    db_file: Path, memory_limit: str = "1GB", threads: int | None = None
+) -> duckdb.DuckDBPyConnection:
     """Open DB_FILE with MEMORY_LIMIT and THREADS (default all cores).
 
     Work that does not fit in MEMORY_LIMIT spills to the folder DB_FILE.tmp.
@@ -24,7 +27,9 @@ def connect(db_file: Path, memory_limit: str = "1GB", threads: int | None = None
     return connection
 
 
-def execute(connection: duckdb.DuckDBPyConnection, sql: str, parameters: list | None = None) -> duckdb.DuckDBPyConnection:
+def execute(
+    connection: duckdb.DuckDBPyConnection, sql: str, parameters: list | None = None
+) -> duckdb.DuckDBPyConnection:
     """Log SQL at TRACE level, then run it on CONNECTION with PARAMETERS."""
     logger.trace("SQL\n{}", sql)
     return connection.execute(sql, parameters)
@@ -32,7 +37,7 @@ def execute(connection: duckdb.DuckDBPyConnection, sql: str, parameters: list | 
 
 @contextmanager
 def transaction(connection: duckdb.DuckDBPyConnection) -> Iterator[None]:
-    """Run the with-block in one transaction on CONNECTION. Any error rolls back every change of the block."""
+    """Run the with-block in one transaction on CONNECTION. Any error rolls back the whole block."""
     execute(connection, "BEGIN")
     try:
         yield

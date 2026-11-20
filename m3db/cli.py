@@ -1,4 +1,5 @@
 """The m3db command and its subcommands."""
+
 import sys
 from pathlib import Path
 from time import perf_counter
@@ -9,13 +10,14 @@ from loguru import logger
 
 from m3db import M3DBError, db
 from m3db.logs import LEVELS, setup_logging
+from m3db.medias import add_medias
 from m3db.tagsets import add_tags, add_tagsets
 
 EXISTING_FILE = click.Path(exists=True, dir_okay=False, path_type=Path)
 
 
 class M3DBGroup(click.Group):
-    """A click group that prints an M3DBError or DuckDB error as one ERROR line and exits with code 1."""
+    """A click group that prints an M3DBError or DuckDB error as one ERROR line and exits with 1."""
 
     def invoke(self, ctx: click.Context):
         try:
@@ -32,7 +34,8 @@ class M3DBGroup(click.Group):
     type=click.Choice(LEVELS, case_sensitive=False),
     default="INFO",
     show_default=True,
-    help="Show messages at this level and above. DEBUG adds phase timings, TRACE adds every SQL statement.",
+    help="Show messages at this level and above. "
+    "DEBUG adds phase timings, TRACE adds every SQL statement.",
 )
 @click.version_option(package_name="simplified-m3-db")
 def cli(log_level: str):
@@ -48,7 +51,9 @@ def init(db_file: Path):
     On an existing DB_FILE, init asks before it drops and recreates every table.
     """
     if db_file.exists():
-        logger.warning(f"{db_file} exists. init drops and recreates every table, so all its data is lost.")
+        logger.warning(
+            f"{db_file} exists. init drops and recreates every table, so all its data is lost."
+        )
         if not click.confirm("Continue?", default=False, err=True):
             logger.info(f"Stopped. {db_file} is unchanged.")
             sys.exit(1)
@@ -59,13 +64,16 @@ def init(db_file: Path):
 
 
 def duckdb_options(command):
-    """Add --memory-limit and --threads, the options of every command that loads data into a .duckdb file."""
+    """Add --memory-limit and --threads to a command that loads data into a .duckdb file."""
     command = click.option(
-        "--threads", type=click.IntRange(min=1),
+        "--threads",
+        type=click.IntRange(min=1),
         help="Threads DuckDB may use. Fewer threads use less memory.  [default: all cores]",
     )(command)
     command = click.option(
-        "--memory-limit", default="1GB", show_default=True,
+        "--memory-limit",
+        default="1GB",
+        show_default=True,
         help="Memory DuckDB may use for data. Work over it spills to the folder DB_FILE.tmp.",
     )(command)
     return command
@@ -74,9 +82,15 @@ def duckdb_options(command):
 @cli.command("add-tagsets")
 @click.argument("db_file", type=EXISTING_FILE)
 @click.argument("tagsets_json", type=EXISTING_FILE)
-@click.option("--ignore-existing", is_flag=True, help="Skip tagsets that already exist, and add only their new tags.")
+@click.option(
+    "--ignore-existing",
+    is_flag=True,
+    help="Skip tagsets that already exist, and add only their new tags.",
+)
 @duckdb_options
-def add_tagsets_command(db_file: Path, tagsets_json: Path, ignore_existing: bool, memory_limit: str, threads: int | None):
+def add_tagsets_command(
+    db_file: Path, tagsets_json: Path, ignore_existing: bool, memory_limit: str, threads: int | None
+):
     """Add the tagsets in TAGSETS_JSON and the tags listed with them to DB_FILE.
 
     \b
@@ -89,8 +103,9 @@ def add_tagsets_command(db_file: Path, tagsets_json: Path, ignore_existing: bool
     start = perf_counter()
     with db.connect(db_file, memory_limit, threads) as connection:
         tagsets_added, tags_added = add_tagsets(connection, tagsets_json, ignore_existing)
-    logger.info(f"Added {tagsets_added:,} tagsets and {tags_added:,} tags in {perf_counter() - start:.1f} s")
-
+    logger.info(
+        f"Added {tagsets_added:,} tagsets and {tags_added:,} tags in {perf_counter() - start:.1f} s"
+    )
 
 
 @cli.command("add-tags")
@@ -111,3 +126,30 @@ def add_tags_command(db_file: Path, tags_json: Path, memory_limit: str, threads:
     with db.connect(db_file, memory_limit, threads) as connection:
         tags_added = add_tags(connection, tags_json)
     logger.info(f"Added {tags_added:,} tags in {perf_counter() - start:.1f} s")
+
+
+@cli.command("add-medias")
+@click.argument("db_file", type=EXISTING_FILE)
+@click.argument("medias_json", type=EXISTING_FILE)
+@click.option("--ignore-existing", is_flag=True, help="Skip medias whose source already exists.")
+@duckdb_options
+def add_medias_command(
+    db_file: Path, medias_json: Path, ignore_existing: bool, memory_limit: str, threads: int | None
+):
+    """Add the medias in MEDIAS_JSON to DB_FILE.
+
+    \b
+    MEDIAS_JSON is a list of medias, for example
+    [{"source": "v1.mp4", "source_type": "video", "thumbnail": "v1.jpg"},
+     {"source": "v1_001.jpg", "source_type": "image", "group": "v1.mp4"}]
+
+    The source_type is one of image, video, audio, text, other. The thumbnail and group are
+    optional. A group names the source of another media, in MEDIAS_JSON or in DB_FILE.
+    """
+    logger.info(f"Reading {medias_json}")
+    start = perf_counter()
+    with db.connect(db_file, memory_limit, threads) as connection:
+        medias_added, medias_skipped = add_medias(connection, medias_json, ignore_existing)
+    if medias_skipped:
+        logger.info(f"Skipped {medias_skipped:,} medias that exist")
+    logger.info(f"Added {medias_added:,} medias in {perf_counter() - start:.1f} s")
