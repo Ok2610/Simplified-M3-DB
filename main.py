@@ -1,4 +1,5 @@
 import click
+import duckdb
 import json
 import sqlite3
 from typing import List
@@ -14,15 +15,12 @@ def cli():
 @click.argument("dbname", type=str)
 @click.argument("ddl_file", type=Path)
 def initdb(dbname: str, ddl_file: Path):
-    """Initializa the database with the given name in the current directory."""
+    """Create the DuckDB database DBNAME.duckdb from DDL_FILE (ddl_duckdb.sql)."""
     if not ddl_file.exists():
         raise FileNotFoundError(f"DDL file not found: {ddl_file}")
-    
-    with sqlite3.connect(f'{dbname}.db') as connection:
-        connection.execute("PRAGMA foreign_keys = ON")
-        with open(ddl_file, 'r') as f:
-            ddl_script = f.read()
-            connection.executescript(ddl_script)
+
+    with duckdb.connect(f'{dbname}.duckdb') as connection:
+        connection.execute(ddl_file.read_text())
 
 
 @cli.command()
