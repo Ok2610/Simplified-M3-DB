@@ -1,30 +1,5 @@
-DROP INDEX IF EXISTS idx_alphanumerical_tagset_id_value;
-DROP INDEX IF EXISTS idx_timestamp_tagset_id_value;
-DROP INDEX IF EXISTS idx_time_tagset_id_value;
-DROP INDEX IF EXISTS idx_date_tagset_id_value;
-DROP INDEX IF EXISTS idx_numerical_int_tagset_id_value;
-DROP INDEX IF EXISTS idx_numerical_dec_tagset_id_value;
-DROP INDEX IF EXISTS idx_json_tagset_id_value;
-
-DROP INDEX IF EXISTS idx_taggings_media_id;
-DROP INDEX IF EXISTS idx_taggings_tag_id;
-
-
-DROP TABLE IF EXISTS taggings;
-DROP TABLE IF EXISTS numerical_int_tags;
-DROP TABLE IF EXISTS numerical_dec_tags;
-DROP TABLE IF EXISTS date_tags;
-DROP TABLE IF EXISTS time_tags;
-DROP TABLE IF EXISTS timestamp_tags;
-DROP TABLE IF EXISTS alphanumerical_tags;
-DROP TABLE IF EXISTS tags;
-DROP TABLE IF EXISTS tagsets;
-DROP TABLE IF EXISTS tag_types;
-DROP TABLE IF EXISTS medias;
-DROP TABLE IF EXISTS source_types;
--- DROP SEQUENCE IF EXISTS media_id_seq;
--- DROP SEQUENCE IF EXISTS tagset_id_seq;
--- DROP SEQUENCE IF EXISTS tag_id_seq;
+-- SQLite schema of an M3 database, the target of m3db to-sqlite.
+-- Same tables and columns as ddl_duckdb.sql, with keys and foreign keys.
 
 ------------------------------------------------------------------------- Source Types
 CREATE TABLE source_types (
@@ -39,11 +14,9 @@ INSERT INTO source_types (id, name) VALUES
 (4, 'Text'),
 (5, 'Other');
 
-
 ------------------------------------------------------------------------- Medias
--- CREATE SEQUENCE media_id_seq; 
 CREATE TABLE medias (
-    id INTEGER PRIMARY KEY, -- DEFAULT nextval('media_id_seq'),
+    id INTEGER PRIMARY KEY,
     source TEXT NOT NULL UNIQUE, -- URI or special identifier
     source_type INTEGER NOT NULL REFERENCES source_types(id),
     thumbnail_uri TEXT,
@@ -66,29 +39,30 @@ INSERT INTO tag_types (id, description) VALUES
 (7, 'json');
 
 ------------------------------------------------------------------------- TagSets
--- CREATE SEQUENCE tagset_id_seq;
 CREATE TABLE tagsets (
-    id INTEGER PRIMARY KEY, -- DEFAULT nextval('tagset_id_seq'),
+    id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     tagtype_id INTEGER NOT NULL REFERENCES tag_types(id),
     UNIQUE (id, tagtype_id)
 );
 
 ------------------------------------------------------------------------- Tags
--- CREATE SEQUENCE tag_id_seq;
 CREATE TABLE tags (
-    id INTEGER PRIMARY KEY, -- DEFAULT nextval('tag_id_seq'),
+    id INTEGER PRIMARY KEY,
     tagtype_id INTEGER NOT NULL,
     tagset_id INTEGER NOT NULL,
     FOREIGN KEY (tagset_id, tagtype_id) REFERENCES tagsets(id, tagtype_id)
 );
+
+-- Each tag value table is unique on (tagset_id, value), which also serves
+-- lookups of a value within a tagset
 
 ------------------------------------------------------------------------- Alphanumerical Tags
 CREATE TABLE alphanumerical_tags (
     id INTEGER PRIMARY KEY REFERENCES tags(id),
     value TEXT NOT NULL,
     tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
-    UNIQUE (value, tagset_id)
+    UNIQUE (tagset_id, value)
 );
 
 ------------------------------------------------------------------------- Timestamp Tags
@@ -96,7 +70,7 @@ CREATE TABLE timestamp_tags (
     id INTEGER PRIMARY KEY REFERENCES tags(id),
     value TIMESTAMP without time zone NOT NULL,
     tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
-    UNIQUE (value, tagset_id)
+    UNIQUE (tagset_id, value)
 );
 
 ------------------------------------------------------------------------- Time Tags
@@ -104,7 +78,7 @@ CREATE TABLE time_tags (
     id INTEGER PRIMARY KEY REFERENCES tags(id),
     value TIME without time zone NOT NULL,
     tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
-    UNIQUE (value, tagset_id)
+    UNIQUE (tagset_id, value)
 );
 
 ------------------------------------------------------------------------- Date Tags
@@ -112,23 +86,23 @@ CREATE TABLE date_tags (
     id INTEGER PRIMARY KEY REFERENCES tags(id),
     value DATE NOT NULL,
     tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
-    UNIQUE (value, tagset_id)
+    UNIQUE (tagset_id, value)
 );
 
-------------------------------------------------------------------------- Numerical Tags
+------------------------------------------------------------------------- Numerical Int Tags
 CREATE TABLE numerical_int_tags (
     id INTEGER PRIMARY KEY REFERENCES tags(id),
     value INTEGER NOT NULL,
     tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
-    UNIQUE (value, tagset_id)
+    UNIQUE (tagset_id, value)
 );
 
-------------------------------------------------------------------------- Numerical Tags
+------------------------------------------------------------------------- Numerical Dec Tags
 CREATE TABLE numerical_dec_tags (
     id INTEGER PRIMARY KEY REFERENCES tags(id),
     value DECIMAL(10,5) NOT NULL,
     tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
-    UNIQUE (value, tagset_id)
+    UNIQUE (tagset_id, value)
 );
 
 ------------------------------------------------------------------------- JSON Tags
@@ -136,32 +110,17 @@ CREATE TABLE json_tags (
     id INTEGER PRIMARY KEY REFERENCES tags(id),
     value TEXT NOT NULL, -- SQLite does not have a built-in JSON field
     tagset_id INTEGER NOT NULL REFERENCES tagsets(id),
-    UNIQUE (value, tagset_id)
+    UNIQUE (tagset_id, value)
 );
 
 ------------------------------------------------------------------------- Media-Tag Relations
+-- Stored in key order without a rowid, so the key also serves lookups by media_id
 CREATE TABLE taggings (
     media_id INTEGER NOT NULL REFERENCES medias(id),
     tag_id INTEGER NOT NULL REFERENCES tags(id),
     PRIMARY KEY (media_id, tag_id)
-);
+) WITHOUT ROWID;
 
-------------------------------------------------------------------------- INDEXES
--- NOTE: If bulk insertion takes too long: 
--- 1. DROP the indexes 
--- 2. Insert data 
--- 3. Create the indexes again
-
-CREATE INDEX idx_alphanumerical_tagset_id_value ON alphanumerical_tags(tagset_id, value);
-CREATE INDEX idx_timestamp_tagset_id_value ON timestamp_tags(tagset_id, value);
-CREATE INDEX idx_time_tagset_id_value ON time_tags(tagset_id, value);
-CREATE INDEX idx_date_tagset_id_value ON date_tags(tagset_id, value);
-CREATE INDEX idx_numerical_int_tagset_id_value ON numerical_int_tags(tagset_id, value);
-CREATE INDEX idx_numerical_dec_tagset_id_value ON numerical_dec_tags(tagset_id, value);
-CREATE INDEX idx_json_tagset_id_value ON json_tags(tagset_id, value);
-
-CREATE INDEX idx_taggings_media_id ON taggings(media_id);
+------------------------------------------------------------------------- Indexes
 CREATE INDEX idx_taggings_tag_id ON taggings(tag_id);
-
 CREATE INDEX idx_medias_group_id ON medias(group_id);
-
