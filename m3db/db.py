@@ -25,7 +25,7 @@ TAG_TYPE_NAMES = ", ".join(name for name, _ in TAG_TYPES.values())
 
 
 def connect(
-    db_file: Path, memory_limit: str = "1GB", threads: int | None = None
+    db_file: Path, memory_limit: str = "8GB", threads: int | None = None
 ) -> duckdb.DuckDBPyConnection:
     """Open DB_FILE with MEMORY_LIMIT and THREADS (default all cores).
 
