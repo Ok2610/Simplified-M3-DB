@@ -1,5 +1,57 @@
 [
-    { "tagset_name": "Day", "tags": [1, 2, 3, 4] },
-    { "tagset_name": "fps", "tags": [24, 50, 60] },
-    { "tagset_name": "Start (ms)", "tags": [0, 2000, 5000, 10000] }
+    {
+        "tagset_name": "Day",
+        "tags": [1, 2, 3, 4]
+    },
+    {
+        "tagset_name": "fps",
+        "tags": [24, 50, 60]
+    },
+    {
+        "tagset_name": "Start (ms)",
+        "tags": [0, 2000, 5000, 10000]
+    },
+    {
+        "tagset_name": "End (ms)",
+        "tags": [5000, 12000, 180000]
+    },
+    {
+        "tagset_name": "User Tags",
+        "tags": ["cycle", "sport", "crazy stunts"]
+    },
+    {
+        "tagset_name": "Categories",
+        "tags": ["sport"]
+    },
+    {
+        "tagset_name": "Objects",
+        "tags": ["person", "cycle", "ramp"]
+    },
+    {
+        "tagset_name": "Caption",
+        "tags": [
+            "Highlights of a sports event showcasing BMX stunts",
+            "Person on a bicycle performing a stunt"
+        ]
+    },
+    {
+        "tagset_name": "Transcript",
+        "tags": ["Here are highlights from day one of the BMX event"]
+    },
+    {
+        "tagset_name": "CLIP Index ID",
+        "tags": [23]
+    },
+    {
+        "tagset_name": "Caption Index ID",
+        "tags": [0, 12]
+    },
+    {
+        "tagset_name": "Transcript Index ID",
+        "tags": [0]
+    },
+    {
+        "tagset_name": "Closest Keyframe",
+        "tags": ["image_1.jpg"]
+    }
 ]

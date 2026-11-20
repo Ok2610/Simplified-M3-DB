@@ -8,8 +8,7 @@
             "Categories": ["sport"],
             "Day": [1],
             "Caption": ["Highlights of a sports event showcasing BMX stunts"],
-            "Segment_Caption_Index_Id": [0],
-            "comment": ["could also create segment captions as own media similar to transcripts"]
+            "Caption Index ID": [0]
         }
     },
     {
@@ -19,8 +18,8 @@
             "End (ms)": [5000],
             "Objects": ["person", "cycle", "ramp"],
             "Caption": ["Person on a bicycle performing a stunt"],
-            "Clip_Index_Id": [23],
-            "Caption_KF_Index_Id": [12]
+            "CLIP Index ID": [23],
+            "Caption Index ID": [12]
         }
     },
     {
@@ -28,10 +27,9 @@
         "tagsets": {
             "Start (ms)": [2000],
             "End (ms)": [12000],
-            "Text": ["Here are highlights from day one of the BMX event"],
-            "Transcript_Index_Id": [0],
-            "Closest_Keyframe": ["image_1.jpg"],
-            "comment": ["closest keyframe can be precomputed, but also possible to do via function"]
+            "Transcript": ["Here are highlights from day one of the BMX event"],
+            "Transcript Index ID": [0],
+            "Closest Keyframe": ["image_1.jpg"]
         }
     }
 ]

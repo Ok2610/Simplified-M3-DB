@@ -1,6 +1,5 @@
-Remove-Item example.duckdb -ErrorAction SilentlyContinue
+# Build example.duckdb from the example JSON files, then copy it to example.db for SQLite
+Remove-Item example.duckdb, example.db -ErrorAction SilentlyContinue
 
-Write-Output "Building example.duckdb from the example JSON files"
 uv run m3db build example.duckdb .
-
-Write-Output "All done"
+uv run m3db to-sqlite example.duckdb example.db

@@ -1,6 +1,5 @@
-rm -f example.duckdb
+# Build example.duckdb from the example JSON files, then copy it to example.db for SQLite
+rm -f example.duckdb example.db
 
-echo "Building example.duckdb from the example JSON files"
 uv run m3db build example.duckdb .
-
-echo "All done"
+uv run m3db to-sqlite example.duckdb example.db
