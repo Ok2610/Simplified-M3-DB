@@ -97,6 +97,10 @@ The loader checks every file, and stops with an error that names the problem, su
 * [Query examples](example/queries.md) shows SQL queries on the example collection, from simple lookups to filters on several tagsets.
 * [The M3 model](docs/model.md) explains the model, the ER diagram and the tables.
 
+## Used by
+
+* [Exquisitor](https://exquisitor.org) reads its collections from databases built with this project.
+
 ## Development
 
 ```bash

@@ -158,7 +158,7 @@ New tags take the next IDs in the order the files are added in, and within a fil
 * A group's media must be in the same file as its members, or added before them. Otherwise `add-medias` stops with an error.
 * Within one medias file, the members of a group get the IDs right after their group's media.
 * Members added in a later file keep their `group_id`, but take the next free IDs.
-* IDs never change once added, because files outside the database, such as exquisitor's embeddings, are indexed by media ID.
+* A media keeps its ID once added. Loading more files never renumbers the medias that exist.
 
 ## JSON or JSONL
 
