@@ -26,13 +26,12 @@ def medias_by_id(query) -> list[tuple]:
 
 
 def test_medias_without_groups_take_ids_in_file_order(m3db, new_db, write_json, query):
-    result = m3db(
+    m3db(
         "add-medias",
         new_db,
         write_json("medias.json", [media("b.jpg"), media("a.jpg"), media("c.jpg")]),
     )
 
-    assert result.exit_code == 0, result.output
     assert medias_by_id(query) == [(1, "b.jpg", None), (2, "a.jpg", None), (3, "c.jpg", None)]
 
 
@@ -132,11 +131,8 @@ def test_new_medias_continue_the_ids_and_may_join_an_existing_group(
         "add-medias", new_db, write_json("first.json", [media("v1.mp4"), media("a.jpg", "v1.mp4")])
     )
 
-    result = m3db(
-        "add-medias", new_db, write_json("more.json", [media("b.jpg", "v1.mp4"), media("x.jpg")])
-    )
+    m3db("add-medias", new_db, write_json("more.json", [media("b.jpg", "v1.mp4"), media("x.jpg")]))
 
-    assert result.exit_code == 0, result.output
     assert medias_by_id(query)[2:] == [(3, "b.jpg", "v1.mp4"), (4, "x.jpg", None)]
 
 
@@ -144,9 +140,8 @@ def test_a_rerun_stops_on_the_existing_media_and_adds_nothing(m3db, new_db, writ
     medias_json = write_json("medias.json", [media("v1.mp4"), media("a.jpg", "v1.mp4")])
     m3db("add-medias", new_db, medias_json)
 
-    result = m3db("add-medias", new_db, medias_json)
+    result = m3db("add-medias", new_db, medias_json, exit_code=1)
 
-    assert result.exit_code == 1
     assert 'Media "v1.mp4" already exists' in result.stderr
     assert len(medias_by_id(query)) == 2
 
@@ -159,7 +154,6 @@ def test_ignore_existing_skips_existing_medias_and_adds_the_rest(m3db, new_db, w
 
     result = m3db("add-medias", new_db, write_json("more.json", more), "--ignore-existing")
 
-    assert result.exit_code == 0, result.output
     assert "Added 1 media" in result.stderr
     assert "Skipped 2 medias that exist" in result.stderr
     assert medias_by_id(query) == [
@@ -174,9 +168,9 @@ def test_a_media_listed_twice_stops_without_ignore_existing(m3db, new_db, write_
         "add-medias",
         new_db,
         write_json("medias.json", [media("a.jpg"), media("b.jpg"), media("a.jpg")]),
+        exit_code=1,
     )
 
-    assert result.exit_code == 1
     assert 'Media "a.jpg" is listed twice in medias.json' in result.stderr
     assert medias_by_id(query) == []
 
@@ -219,8 +213,9 @@ def test_a_media_listed_twice_with_ignore_existing_keeps_its_first_entry(
 def test_bad_medias_stop_the_command_and_change_nothing(
     m3db, new_db, write_json, query, medias, message
 ):
-    result = m3db("add-medias", new_db, write_json("medias.json", [media("ok.jpg")] + medias))
+    medias_json = write_json("medias.json", [media("ok.jpg")] + medias)
 
-    assert result.exit_code == 1
+    result = m3db("add-medias", new_db, medias_json, exit_code=1)
+
     assert message in result.stderr
     assert medias_by_id(query) == []

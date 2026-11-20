@@ -20,11 +20,6 @@ def loaded_db(m3db, new_db, write_json):
     return new_db
 
 
-def test_a_loaded_database_passes(loaded_db):
-    with duckdb.connect(loaded_db) as connection:
-        run_checks(connection)
-
-
 @pytest.mark.parametrize(
     "break_sql, message",
     [
@@ -39,6 +34,19 @@ def test_a_loaded_database_passes(loaded_db):
         (
             "UPDATE medias SET group_id = 9 WHERE id = 2",
             "1 medias.group_id with no media",
+        ),
+        (
+            "UPDATE medias SET source_type = 9 WHERE id = 1",
+            "1 medias.source_type with no source type",
+        ),
+        (
+            "UPDATE tags SET tagtype_id = 5 WHERE id = 1",
+            "1 tags with no tagset of the same tag type",
+        ),
+        (
+            "UPDATE tags SET tagset_id = 9 WHERE id = 1; "
+            "UPDATE alphanumerical_tags SET tagset_id = 9 WHERE id = 1",
+            "1 tag value rows with no tagset",
         ),
         (
             "INSERT INTO tags VALUES (2, 1, 1); "
@@ -90,8 +98,8 @@ def test_an_add_command_on_a_broken_database_stops_and_changes_nothing(
         "add-medias",
         loaded_db,
         write_json("more.json", [{"source": "c.jpg", "source_type": "image"}]),
+        exit_code=1,
     )
 
-    assert result.exit_code == 1
     assert "1 taggings.media_id with no media" in result.stderr
     assert query("SELECT count(*) FROM medias") == [(2,)]

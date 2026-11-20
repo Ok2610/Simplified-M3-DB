@@ -57,7 +57,6 @@ def test_every_row_is_copied(m3db, loaded_db, tmp_path):
 
     result = m3db("to-sqlite", loaded_db, sqlite_file)
 
-    assert result.exit_code == 0, result.output
     assert f"Wrote {sqlite_file}" in result.stderr
     with duckdb.connect(loaded_db, read_only=True) as connection:
         for table in COPIED_TABLES:
@@ -98,9 +97,8 @@ def test_an_existing_sqlite_file_is_refused_and_unchanged(m3db, loaded_db, tmp_p
     sqlite_file = tmp_path / "test.db"
     sqlite_file.write_text("keep me")
 
-    result = m3db("to-sqlite", loaded_db, sqlite_file)
+    result = m3db("to-sqlite", loaded_db, sqlite_file, exit_code=1)
 
-    assert result.exit_code == 1
     assert "test.db exists" in result.stderr
     assert sqlite_file.read_text() == "keep me"
 
@@ -109,7 +107,10 @@ def test_an_existing_sqlite_file_is_refused_and_unchanged(m3db, loaded_db, tmp_p
     "break_sql, message",
     [
         ("INSERT INTO taggings VALUES (9, 1)", "taggings.media_id with no media"),
-        ("UPDATE medias SET source_type = 9 WHERE id = 1", "foreign key"),
+        (
+            "UPDATE medias SET source_type = 9 WHERE id = 1",
+            "medias.source_type with no source type",
+        ),
     ],
 )
 def test_a_broken_database_is_refused_and_leaves_no_sqlite_file(
@@ -119,9 +120,8 @@ def test_a_broken_database_is_refused_and_leaves_no_sqlite_file(
         connection.execute(break_sql)
     sqlite_file = tmp_path / "test.db"
 
-    result = m3db("to-sqlite", loaded_db, sqlite_file)
+    result = m3db("to-sqlite", loaded_db, sqlite_file, exit_code=1)
 
-    assert result.exit_code == 1
     assert message in result.stderr
     assert not sqlite_file.exists()
 
@@ -153,7 +153,6 @@ def test_a_sqlite_file_in_the_old_schema_converts_with_native_types(m3db, tmp_pa
 
     result = m3db("to-duckdb", old_sqlite_file(tmp_path / "old.db"), duckdb_file)
 
-    assert result.exit_code == 0, result.output
     assert f"Wrote {duckdb_file}" in result.stderr
     with duckdb.connect(duckdb_file, read_only=True) as connection:
         assert connection.execute("SELECT value FROM time_tags").fetchall() == [
@@ -175,9 +174,8 @@ def test_a_sqlite_file_in_the_old_schema_converts_with_native_types(m3db, tmp_pa
 def test_a_round_trip_through_to_sqlite_keeps_every_row(m3db, loaded_db, tmp_path):
     m3db("to-sqlite", loaded_db, tmp_path / "test.db")
 
-    result = m3db("to-duckdb", tmp_path / "test.db", tmp_path / "back.duckdb")
+    m3db("to-duckdb", tmp_path / "test.db", tmp_path / "back.duckdb")
 
-    assert result.exit_code == 0, result.output
     tables = COPIED_TABLES + ["timestamp_tags", "time_tags", "date_tags", "json_tags"]
     with duckdb.connect(loaded_db, read_only=True) as original:
         with duckdb.connect(tmp_path / "back.duckdb", read_only=True) as back:
@@ -192,9 +190,8 @@ def test_a_malformed_time_stops_the_copy_and_leaves_no_duckdb_file(m3db, tmp_pat
         "INSERT INTO tags VALUES (6, 3, 2); INSERT INTO time_tags VALUES (6, '25:99', 2);",
     )
 
-    result = m3db("to-duckdb", sqlite_file, tmp_path / "test.duckdb")
+    result = m3db("to-duckdb", sqlite_file, tmp_path / "test.duckdb", exit_code=1)
 
-    assert result.exit_code == 1
     assert "time_tags" in result.stderr
     assert "25:99" in result.stderr
     assert not (tmp_path / "test.duckdb").exists()
@@ -203,9 +200,8 @@ def test_a_malformed_time_stops_the_copy_and_leaves_no_duckdb_file(m3db, tmp_pat
 def test_a_sqlite_file_that_fails_the_checks_leaves_no_duckdb_file(m3db, tmp_path):
     sqlite_file = old_sqlite_file(tmp_path / "old.db", "INSERT INTO taggings VALUES (9, 1);")
 
-    result = m3db("to-duckdb", sqlite_file, tmp_path / "test.duckdb")
+    result = m3db("to-duckdb", sqlite_file, tmp_path / "test.duckdb", exit_code=1)
 
-    assert result.exit_code == 1
     assert "1 taggings.media_id with no media" in result.stderr
     assert not (tmp_path / "test.duckdb").exists()
 
@@ -213,9 +209,8 @@ def test_a_sqlite_file_that_fails_the_checks_leaves_no_duckdb_file(m3db, tmp_pat
 def test_an_existing_duckdb_file_is_refused_and_unchanged(m3db, loaded_db, tmp_path):
     sqlite_file = old_sqlite_file(tmp_path / "old.db")
 
-    result = m3db("to-duckdb", sqlite_file, loaded_db)
+    result = m3db("to-duckdb", sqlite_file, loaded_db, exit_code=1)
 
-    assert result.exit_code == 1
     assert "test.duckdb exists" in result.stderr
     with duckdb.connect(loaded_db, read_only=True) as connection:
         assert connection.execute("SELECT count(*) FROM tagsets").fetchone() == (7,)

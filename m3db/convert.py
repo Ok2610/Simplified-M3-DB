@@ -85,8 +85,8 @@ def copy_rows(duckdb_file: Path, sqlite_file: Path, memory_limit: str, threads: 
 
 
 def finish_sqlite(sqlite_file: Path, indexes_sql: str, cache_mb: int) -> None:
-    """Build the indexes of SQLITE_FILE, run ANALYZE, and raise an M3DBError for a broken
-    foreign key or a failed quick_check."""
+    """Build the indexes of SQLITE_FILE, run ANALYZE, and raise an M3DBError if
+    quick_check finds a problem in the written file."""
     with closing(sqlite3.connect(sqlite_file)) as sqlite:
         sqlite.execute(f"PRAGMA cache_size = -{cache_mb * 1024}")
         with phase("Build the SQLite indexes"):
@@ -94,17 +94,7 @@ def finish_sqlite(sqlite_file: Path, indexes_sql: str, cache_mb: int) -> None:
         with phase("ANALYZE"):
             sqlite.execute("ANALYZE")
             sqlite.commit()
-
         with phase("Check the SQLite file"):
-            broken = sqlite.execute("SELECT count(*) FROM pragma_foreign_key_check").fetchone()[0]
-            if broken:
-                table, _, parent, _ = sqlite.execute(
-                    "SELECT * FROM pragma_foreign_key_check LIMIT 1"
-                ).fetchone()
-                raise M3DBError(
-                    f"{broken:,} rows of the SQLite file break a foreign key, for example "
-                    f"a row of {table} with no {parent} row. {sqlite_file} was deleted."
-                )
             result = sqlite.execute("PRAGMA quick_check").fetchone()[0]
             if result != "ok":
                 raise M3DBError(

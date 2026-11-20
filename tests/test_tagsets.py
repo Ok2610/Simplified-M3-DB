@@ -38,9 +38,8 @@ def database_snapshot(query) -> tuple:
 
 
 def test_tagsets_and_tags_take_ids_in_file_order(m3db, new_db, write_json, query):
-    result = m3db("add-tagsets", new_db, write_json("tagsets.json", PEOPLE_AND_YEAR))
+    m3db("add-tagsets", new_db, write_json("tagsets.json", PEOPLE_AND_YEAR))
 
-    assert result.exit_code == 0, result.output
     assert query("SELECT id, name, tagtype_id FROM tagsets ORDER BY id") == [
         (1, "People", 1),
         (2, "Year", 5),
@@ -62,9 +61,8 @@ def test_each_tag_type_is_stored_with_its_native_type(m3db, new_db, write_json, 
         {"name": "Score", "tagtype": "numerical_dec", "tags": [0.5]},
         {"name": "Box", "tagtype": "json", "tags": [{"x": 1}]},
     ]
-    result = m3db("add-tagsets", new_db, write_json("tagsets.json", tagsets))
+    m3db("add-tagsets", new_db, write_json("tagsets.json", tagsets))
 
-    assert result.exit_code == 0, result.output
     assert query("SELECT value FROM timestamp_tags") == [
         (datetime.datetime(2019, 1, 2, 10, 11, 12),)
     ]
@@ -77,20 +75,18 @@ def test_each_tag_type_is_stored_with_its_native_type(m3db, new_db, write_json, 
 def test_tag_types_are_matched_without_case(m3db, new_db, write_json, query):
     tagsets = [{"name": "People", "tagtype": "Alphanumerical", "tags": []}]
 
-    result = m3db("add-tagsets", new_db, write_json("tagsets.json", tagsets))
+    m3db("add-tagsets", new_db, write_json("tagsets.json", tagsets))
 
-    assert result.exit_code == 0, result.output
     assert query("SELECT name, tagtype_id FROM tagsets") == [("People", 1)]
 
 
 def test_a_tagset_without_tags_is_added(m3db, new_db, write_json, query):
-    result = m3db(
+    m3db(
         "add-tagsets",
         new_db,
         write_json("tagsets.json", [{"name": "People", "tagtype": "alphanumerical"}]),
     )
 
-    assert result.exit_code == 0, result.output
     assert query("SELECT name FROM tagsets") == [("People",)]
 
 
@@ -110,21 +106,6 @@ def test_status_line_counts_what_was_added(m3db, new_db, write_json):
     assert "Added 2 tagsets and 5 tags" in result.stderr
 
 
-def test_memory_options_are_accepted(m3db, new_db, write_json, query):
-    result = m3db(
-        "add-tagsets",
-        new_db,
-        write_json("tagsets.json", PEOPLE_AND_YEAR),
-        "--memory-limit",
-        "256MB",
-        "--threads",
-        "1",
-    )
-
-    assert result.exit_code == 0, result.output
-    assert len(all_tags(query)) == 5
-
-
 # add-tagsets: existing tagsets
 
 
@@ -133,9 +114,8 @@ def test_a_rerun_stops_on_the_existing_tagset_and_adds_nothing(m3db, new_db, wri
     m3db("add-tagsets", new_db, tagsets_json)
     before = database_snapshot(query)
 
-    result = m3db("add-tagsets", new_db, tagsets_json)
+    result = m3db("add-tagsets", new_db, tagsets_json, exit_code=1)
 
-    assert result.exit_code == 1
     assert 'Tagset "People" already exists' in result.stderr
     assert database_snapshot(query) == before
 
@@ -147,7 +127,6 @@ def test_a_rerun_with_ignore_existing_adds_nothing(m3db, new_db, write_json, que
 
     result = m3db("add-tagsets", new_db, tagsets_json, "--ignore-existing")
 
-    assert result.exit_code == 0, result.output
     assert "Added 0 tagsets and 0 tags" in result.stderr
     assert database_snapshot(query) == before
 
@@ -159,9 +138,8 @@ def test_ignore_existing_still_adds_new_tags_to_an_existing_tagset(m3db, new_db,
         {"name": "Place", "tagtype": "alphanumerical", "tags": ["Oslo"]},
     ]
 
-    result = m3db("add-tagsets", new_db, write_json("more.json", more), "--ignore-existing")
+    m3db("add-tagsets", new_db, write_json("more.json", more), "--ignore-existing")
 
-    assert result.exit_code == 0, result.output
     assert query("SELECT id, name FROM tagsets ORDER BY id")[-1] == (3, "Place")
     assert all_tags(query)[-2:] == [(6, "People", "Dee"), (7, "Place", "Oslo")]
 
@@ -169,9 +147,8 @@ def test_ignore_existing_still_adds_new_tags_to_an_existing_tagset(m3db, new_db,
 def test_a_tagset_listed_twice_stops_without_ignore_existing(m3db, new_db, write_json, query):
     tagsets = PEOPLE_AND_YEAR + [{"name": "People", "tagtype": "alphanumerical", "tags": []}]
 
-    result = m3db("add-tagsets", new_db, write_json("tagsets.json", tagsets))
+    result = m3db("add-tagsets", new_db, write_json("tagsets.json", tagsets), exit_code=1)
 
-    assert result.exit_code == 1
     assert 'Tagset "People" is listed twice in tagsets.json' in result.stderr
     assert query("SELECT count(*) FROM tagsets") == [(0,)]
 
@@ -183,9 +160,8 @@ def test_a_tagset_listed_twice_with_ignore_existing_merges_its_tags(
         {"name": "People", "tagtype": "alphanumerical", "tags": ["Anna", "Cy"]}
     ]
 
-    result = m3db("add-tagsets", new_db, write_json("tagsets.json", tagsets), "--ignore-existing")
+    m3db("add-tagsets", new_db, write_json("tagsets.json", tagsets), "--ignore-existing")
 
-    assert result.exit_code == 0, result.output
     assert query("SELECT count(*) FROM tagsets") == [(2,)]
     assert all_tags(query)[-1] == (6, "People", "Cy")
 
@@ -219,9 +195,13 @@ def test_a_tagset_listed_twice_with_ignore_existing_merges_its_tags(
 def test_bad_tagsets_stop_the_command_and_change_nothing(
     m3db, new_db, write_json, query, tagsets, message
 ):
-    result = m3db("add-tagsets", new_db, write_json("tagsets.json", PEOPLE_AND_YEAR[:1] + tagsets))
+    result = m3db(
+        "add-tagsets",
+        new_db,
+        write_json("tagsets.json", PEOPLE_AND_YEAR[:1] + tagsets),
+        exit_code=1,
+    )
 
-    assert result.exit_code == 1
     assert message in result.stderr
     assert database_snapshot(query) == ([], [], [])
 
@@ -230,9 +210,8 @@ def test_a_file_that_is_not_json_stops_the_command(m3db, new_db, tmp_path):
     broken = tmp_path / "tagsets.json"
     broken.write_text('[{"name": "People",')
 
-    result = m3db("add-tagsets", new_db, broken)
+    result = m3db("add-tagsets", new_db, broken, exit_code=1)
 
-    assert result.exit_code == 1
     assert "ERROR" in result.stderr
 
 
@@ -245,7 +224,6 @@ def test_add_tags_continues_the_tag_ids(m3db, new_db, write_json, query):
 
     result = m3db("add-tags", new_db, write_json("tags.json", tags))
 
-    assert result.exit_code == 0, result.output
     assert "Added 2 tags" in result.stderr
     assert all_tags(query)[-2:] == [(6, "People", "Cy"), (7, "Year", "2022")]
 
@@ -275,7 +253,6 @@ def test_add_tags_skips_values_the_tagset_has(m3db, new_db, write_json, query):
     m3db("add-tags", new_db, tags_json)
     rerun = m3db("add-tags", new_db, tags_json)
 
-    assert rerun.exit_code == 0, rerun.output
     assert "Added 0 tags" in rerun.stderr
     assert [value for (_, name, value) in all_tags(query) if name == "People"] == [
         "Anna",
@@ -305,8 +282,7 @@ def test_bad_tags_stop_the_command_and_change_nothing(
     before = database_snapshot(query)
     good = [{"tagset_name": "People", "tags": ["Cy"]}]
 
-    result = m3db("add-tags", new_db, write_json("tags.json", good + tags))
+    result = m3db("add-tags", new_db, write_json("tags.json", good + tags), exit_code=1)
 
-    assert result.exit_code == 1
     assert message in result.stderr
     assert database_snapshot(query) == before

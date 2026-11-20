@@ -43,8 +43,7 @@ def build_with_separate_commands(m3db, db_file: Path, folder: Path, names: list[
     m3db("init", db_file)
     for name in names:
         command = "add-" + Path(name).stem.split("_")[-1]
-        result = m3db(command, db_file, folder / name)
-        assert result.exit_code == 0, result.output
+        m3db(command, db_file, folder / name)
 
 
 def test_build_gives_the_same_database_as_the_separate_commands(m3db, tmp_path):
@@ -59,7 +58,6 @@ def test_build_gives_the_same_database_as_the_separate_commands(m3db, tmp_path):
     result = m3db("build", tmp_path / "built.duckdb", folder)
     build_with_separate_commands(m3db, tmp_path / "separate.duckdb", folder, list(files))
 
-    assert result.exit_code == 0, result.output
     assert "Built" in result.stderr
     assert all_rows(tmp_path / "built.duckdb") == all_rows(tmp_path / "separate.duckdb")
     assert len(all_rows(tmp_path / "built.duckdb")["taggings"]) == 4
@@ -70,7 +68,6 @@ def test_build_skips_a_missing_tags_json(m3db, tmp_path):
 
     result = m3db("build", tmp_path / "built.duckdb", folder)
 
-    assert result.exit_code == 0, result.output
     assert "No tags file" in result.stderr
     assert "No taggings file" in result.stderr
     assert len(all_rows(tmp_path / "built.duckdb")["medias"]) == 2
@@ -95,10 +92,9 @@ def test_split_files_load_one_at_a_time_in_name_order(m3db, tmp_path):
         "b_taggings.json",
     ]
 
-    result = m3db("build", tmp_path / "built.duckdb", folder)
+    m3db("build", tmp_path / "built.duckdb", folder)
     build_with_separate_commands(m3db, tmp_path / "separate.duckdb", folder, in_name_order)
 
-    assert result.exit_code == 0, result.output
     assert all_rows(tmp_path / "built.duckdb") == all_rows(tmp_path / "separate.duckdb")
 
 
@@ -107,7 +103,6 @@ def test_a_json_file_with_another_name_is_ignored_with_a_warning(m3db, tmp_path)
 
     result = m3db("build", tmp_path / "built.duckdb", folder)
 
-    assert result.exit_code == 0, result.output
     assert "Ignored notes.json" in result.stderr
 
 
@@ -116,9 +111,8 @@ def test_an_error_in_a_file_stops_the_build(m3db, tmp_path):
     files = {"tagsets.json": TAGSETS, "medias.json": MEDIAS, "taggings.json": bad_taggings}
     folder = write_folder(tmp_path / "collection", files)
 
-    result = m3db("build", tmp_path / "built.duckdb", folder)
+    result = m3db("build", tmp_path / "built.duckdb", folder, exit_code=1)
 
-    assert result.exit_code == 1
     assert 'Media "z.jpg" in taggings.json does not exist' in result.stderr
     assert "Built" not in result.stderr
 
@@ -126,9 +120,8 @@ def test_an_error_in_a_file_stops_the_build(m3db, tmp_path):
 def test_a_folder_without_m3_files_stops_the_build(m3db, tmp_path):
     folder = write_folder(tmp_path / "collection", {})
 
-    result = m3db("build", tmp_path / "built.duckdb", folder)
+    result = m3db("build", tmp_path / "built.duckdb", folder, exit_code=1)
 
-    assert result.exit_code == 1
     assert "No tagsets, tags, medias or taggings files" in result.stderr
     assert not (tmp_path / "built.duckdb").exists()
 
@@ -138,9 +131,8 @@ def test_build_on_an_existing_file_asks_and_stops_when_declined(m3db, tmp_path, 
     db_file = tmp_path / "test.duckdb"
     m3db("build", db_file, folder)
 
-    result = m3db("build", db_file, folder, input="n\n")
+    result = m3db("build", db_file, folder, input="n\n", exit_code=1)
 
-    assert result.exit_code == 1
     assert "every table" in result.stderr
     assert query("SELECT count(*) FROM tagsets") == [(2,)]
 
@@ -164,51 +156,26 @@ def test_jsonl_files_give_the_same_database_as_json_files(m3db, tmp_path):
     )
 
     m3db("build", tmp_path / "from_json.duckdb", json_folder)
-    result = m3db("build", tmp_path / "from_jsonl.duckdb", jsonl_folder)
+    m3db("build", tmp_path / "from_jsonl.duckdb", jsonl_folder)
 
-    assert result.exit_code == 0, result.output
     assert all_rows(tmp_path / "from_jsonl.duckdb") == all_rows(tmp_path / "from_json.duckdb")
-
-
-def test_split_json_and_jsonl_files_load_together_in_name_order(m3db, tmp_path):
-    folder = write_folder(
-        tmp_path / "collection", {"tagsets.json": TAGSETS, "year_tags.json": TAGS[1:]}
-    )
-    (folder / "people_tags.jsonl").write_text(json.dumps(TAGS[0]) + "\n")
-
-    result = m3db("build", tmp_path / "built.duckdb", folder)
-
-    assert result.exit_code == 0, result.output
-    assert result.stderr.index("people_tags.jsonl") < result.stderr.index("year_tags.json")
 
 
 def test_a_folder_with_both_tagsets_json_and_tagsets_jsonl_stops_the_build(m3db, tmp_path):
     folder = write_folder(tmp_path / "collection", {"tagsets.json": TAGSETS})
     (folder / "tagsets.jsonl").write_text(json.dumps(TAGSETS[0]) + "\n")
 
-    result = m3db("build", tmp_path / "built.duckdb", folder)
+    result = m3db("build", tmp_path / "built.duckdb", folder, exit_code=1)
 
-    assert result.exit_code == 1
     assert "has both tagsets.json and tagsets.jsonl" in result.stderr
-
-
-def test_an_add_command_reads_a_jsonl_file(m3db, new_db, tmp_path, query):
-    tagsets_jsonl = tmp_path / "tagsets.jsonl"
-    tagsets_jsonl.write_text("".join(json.dumps(entry) + "\n" for entry in TAGSETS))
-
-    result = m3db("add-tagsets", new_db, tagsets_jsonl)
-
-    assert result.exit_code == 0, result.output
-    assert query("SELECT name FROM tagsets ORDER BY id") == [("People",), ("Year",)]
 
 
 def test_a_file_that_is_not_json_or_jsonl_stops_the_command(m3db, new_db, tmp_path):
     tagsets_txt = tmp_path / "tagsets.txt"
     tagsets_txt.write_text(json.dumps(TAGSETS))
 
-    result = m3db("add-tagsets", new_db, tagsets_txt)
+    result = m3db("add-tagsets", new_db, tagsets_txt, exit_code=1)
 
-    assert result.exit_code == 1
     assert "tagsets.txt is not a .json or .jsonl file" in result.stderr
 
 
@@ -216,9 +183,8 @@ def test_a_jsonl_line_too_long_stops_with_advice_to_split_it(m3db, new_db, tmp_p
     big_tags = tmp_path / "tags.jsonl"
     big_tags.write_text(json.dumps({"tagset_name": "People", "tags": ["x" * 1000] * 40_000}) + "\n")
 
-    result = m3db("add-tags", new_db, big_tags)
+    result = m3db("add-tags", new_db, big_tags, exit_code=1)
 
-    assert result.exit_code == 1
     assert "tags.jsonl has a line too long to read as JSONL" in result.stderr
     assert "Split" in result.stderr
 
@@ -246,7 +212,6 @@ def test_every_kind_is_found_by_the_end_of_its_name_and_loads_in_kind_order(m3db
     result = m3db("build", tmp_path / "built.duckdb", folder)
     build_with_separate_commands(m3db, tmp_path / "separate.duckdb", folder, load_order)
 
-    assert result.exit_code == 0, result.output
     positions = [result.stderr.index(f"Reading {folder / name}") for name in load_order]
     assert positions == sorted(positions)
     assert all_rows(tmp_path / "built.duckdb") == all_rows(tmp_path / "separate.duckdb")

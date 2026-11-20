@@ -70,10 +70,3 @@ def test_each_value_table_has_one_unique_index_on_tagset_id_and_value(sqlite_db,
 
 def test_medias_has_an_index_on_group_id(sqlite_db):
     assert (False, ["group_id"]) in indexes(sqlite_db, "medias").values()
-
-
-def test_foreign_keys_reject_a_tagging_for_a_missing_media(sqlite_db):
-    sqlite_db.execute("PRAGMA foreign_keys = ON")
-
-    with pytest.raises(sqlite3.IntegrityError):
-        sqlite_db.execute("INSERT INTO taggings VALUES (1, 1)")

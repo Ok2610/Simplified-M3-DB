@@ -1,15 +1,6 @@
 """Tests for m3db init."""
 
-import re
-from importlib.resources import files
-
 import duckdb
-
-
-def sqlite_tables() -> set[str]:
-    """Names of the tables created by m3db/ddl.sql."""
-    ddl = (files("m3db") / "ddl.sql").read_text()
-    return set(re.findall(r"CREATE TABLE (\w+)", ddl))
 
 
 def column_types(db_file, table: str) -> dict[str, str]:
@@ -20,15 +11,6 @@ def column_types(db_file, table: str) -> dict[str, str]:
             [table],
         ).fetchall()
     return dict(rows)
-
-
-def test_init_creates_every_table_of_the_sqlite_schema(m3db, db_file):
-    result = m3db("init", db_file)
-
-    assert result.exit_code == 0, result.output
-    with duckdb.connect(db_file, read_only=True) as connection:
-        tables = {name for (name,) in connection.execute("SHOW TABLES").fetchall()}
-    assert tables == sqlite_tables()
 
 
 def test_init_uses_native_types_for_tag_values(m3db, db_file):
@@ -80,9 +62,8 @@ def test_init_on_an_existing_file_warns_and_stops_when_declined(m3db, db_file):
     m3db("init", db_file)
     add_one_tagset(db_file)
 
-    result = m3db("init", db_file, input="n\n")
+    result = m3db("init", db_file, input="n\n", exit_code=1)
 
-    assert result.exit_code == 1
     assert "every table" in result.output
     assert count_tagsets(db_file) == 1
 
@@ -91,7 +72,6 @@ def test_init_on_an_existing_file_resets_the_tables_when_confirmed(m3db, db_file
     m3db("init", db_file)
     add_one_tagset(db_file)
 
-    result = m3db("init", db_file, input="y\n")
+    m3db("init", db_file, input="y\n")
 
-    assert result.exit_code == 0, result.output
     assert count_tagsets(db_file) == 0

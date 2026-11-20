@@ -18,10 +18,15 @@ def db_file(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def m3db():
-    """Run the m3db command with a list of arguments and return the click Result."""
+    """Run the m3db command with a list of arguments, check its exit code, and return the Result.
 
-    def run(*args: str | Path, input: str | None = None) -> Result:
-        return CliRunner().invoke(cli, [str(arg) for arg in args], input=input)
+    The exit code must be EXIT_CODE, 0 unless a test expects the command to fail.
+    """
+
+    def run(*args: str | Path, input: str | None = None, exit_code: int = 0) -> Result:
+        result = CliRunner().invoke(cli, [str(arg) for arg in args], input=input)
+        assert result.exit_code == exit_code, result.output
+        return result
 
     return run
 

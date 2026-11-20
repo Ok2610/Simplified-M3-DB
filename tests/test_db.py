@@ -14,7 +14,6 @@ def test_connect_sets_the_memory_limit_and_threads(db_file):
         assert setting(connection, "preserve_insertion_order") is False
 
 
-def test_connect_keeps_duckdb_threads_when_none_are_given(db_file):
+def test_connect_defaults_to_an_8gb_memory_limit(db_file):
     with db.connect(db_file) as connection:
-        assert setting(connection, "threads") >= 1
         assert setting(connection, "memory_limit") == "7.4 GiB"

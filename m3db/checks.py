@@ -1,6 +1,7 @@
-"""Database checks that every add command runs before it commits.
+"""Database checks that every add command, to-sqlite and to-duckdb run on a DuckDB database.
 
-The large DuckDB tables have no keys, so these checks catch what keys and foreign keys would.
+The large DuckDB tables have no keys, so these checks catch what the keys and foreign keys
+of the SQLite schema would.
 """
 
 import duckdb
@@ -38,8 +39,29 @@ CHECKS = [
         """,
     ),
     (
+        "medias.source_type with no source type",
+        "SELECT count(*) FROM medias WHERE source_type NOT IN (SELECT id FROM source_types)",
+    ),
+    (
         "tags.id listed twice",
         "SELECT count(*) FROM (SELECT id FROM tags GROUP BY id HAVING count(*) > 1)",
+    ),
+    (
+        "tags with no tagset of the same tag type",
+        """
+        SELECT count(*) FROM tags
+        WHERE NOT EXISTS (
+            SELECT 1 FROM tagsets
+            WHERE tagsets.id = tags.tagset_id AND tagsets.tagtype_id = tags.tagtype_id
+        )
+        """,
+    ),
+    (
+        "tag value rows with no tagset",
+        f"""
+        SELECT count(*) FROM ({ALL_VALUE_ROWS}) value_row
+        WHERE value_row.tagset_id NOT IN (SELECT id FROM tagsets)
+        """,
     ),
     (
         "tag values listed twice in a tagset",

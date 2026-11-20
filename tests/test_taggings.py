@@ -48,7 +48,6 @@ def test_taggings_join_medias_and_tags_by_source_tagset_and_value(
 
     result = m3db("add-taggings", loaded_db, write_json("taggings.json", taggings))
 
-    assert result.exit_code == 0, result.output
     assert "Added 4 taggings" in result.stderr
     assert all_taggings(query) == [
         ("a.jpg", "People", "Anna"),
@@ -85,7 +84,6 @@ def test_a_rerun_adds_nothing(m3db, loaded_db, write_json, query):
 
     result = m3db("add-taggings", loaded_db, taggings_json)
 
-    assert result.exit_code == 0, result.output
     assert "Added 0 taggings" in result.stderr
     assert all_taggings(query) == [("a.jpg", "People", "Anna")]
 
@@ -100,7 +98,6 @@ def test_taggings_for_an_unknown_tagset_are_skipped_and_reported(
 
     result = m3db("add-taggings", loaded_db, write_json("taggings.json", taggings))
 
-    assert result.exit_code == 0, result.output
     assert 'Skipped 2 taggings for the unknown tagset "Place"' in result.stderr
     assert all_taggings(query) == [("a.jpg", "People", "Bo")]
 
@@ -114,7 +111,6 @@ def test_taggings_for_values_that_are_not_tags_are_skipped_and_reported(
 
     result = m3db("add-taggings", loaded_db, write_json("taggings.json", taggings))
 
-    assert result.exit_code == 0, result.output
     assert (
         'Skipped 4 taggings whose value is not a tag of "People", '
         'for example "Cy", "Dee", "Eli"' in result.stderr
@@ -129,7 +125,6 @@ def test_taggings_whose_value_does_not_fit_are_skipped_and_reported(
 
     result = m3db("add-taggings", loaded_db, write_json("taggings.json", taggings))
 
-    assert result.exit_code == 0, result.output
     assert (
         'Skipped 1 tagging whose value does not fit the numerical_int tagset "Year", '
         'for example "soon"' in result.stderr
@@ -158,8 +153,9 @@ def test_bad_taggings_stop_the_command_and_change_nothing(
 ):
     good = [{"media_source": "a.jpg", "tagsets": {"People": ["Anna"]}}]
 
-    result = m3db("add-taggings", loaded_db, write_json("taggings.json", good + taggings))
+    result = m3db(
+        "add-taggings", loaded_db, write_json("taggings.json", good + taggings), exit_code=1
+    )
 
-    assert result.exit_code == 1
     assert message in result.stderr
     assert all_taggings(query) == []
