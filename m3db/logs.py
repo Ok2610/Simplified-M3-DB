@@ -26,3 +26,9 @@ def phase(name: str) -> Iterator[None]:
     start = perf_counter()
     yield
     logger.debug(f"{name} in {perf_counter() - start:.2f} s")
+
+
+def counted(count: int, singular: str, plural: str | None = None) -> str:
+    """Return COUNT with the noun that fits it, as "1 tagging" or "1,200 taggings"."""
+    noun = singular if count == 1 else (plural or singular + "s")
+    return f"{count:,} {noun}"

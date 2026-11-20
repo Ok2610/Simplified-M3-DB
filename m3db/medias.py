@@ -5,6 +5,7 @@ from pathlib import Path
 import duckdb
 
 from m3db import M3DBError
+from m3db.checks import run_checks
 from m3db.db import execute, transaction
 from m3db.json_input import read_json
 from m3db.logs import phase
@@ -78,6 +79,7 @@ def add_medias(
             connection,
             "DROP TABLE media_entries; DROP TABLE media_groups; DROP TABLE new_media_ids",
         )
+        run_checks(connection)
     return medias_added, medias_skipped
 
 

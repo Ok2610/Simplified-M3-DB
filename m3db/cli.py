@@ -9,8 +9,9 @@ import duckdb
 from loguru import logger
 
 from m3db import M3DBError, db
-from m3db.logs import LEVELS, setup_logging
+from m3db.logs import LEVELS, counted, setup_logging
 from m3db.medias import add_medias
+from m3db.taggings import add_taggings
 from m3db.tagsets import add_tags, add_tagsets
 
 EXISTING_FILE = click.Path(exists=True, dir_okay=False, path_type=Path)
@@ -104,7 +105,8 @@ def add_tagsets_command(
     with db.connect(db_file, memory_limit, threads) as connection:
         tagsets_added, tags_added = add_tagsets(connection, tagsets_json, ignore_existing)
     logger.info(
-        f"Added {tagsets_added:,} tagsets and {tags_added:,} tags in {perf_counter() - start:.1f} s"
+        f"Added {counted(tagsets_added, 'tagset')} and {counted(tags_added, 'tag')} "
+        f"in {perf_counter() - start:.1f} s"
     )
 
 
@@ -125,7 +127,7 @@ def add_tags_command(db_file: Path, tags_json: Path, memory_limit: str, threads:
     start = perf_counter()
     with db.connect(db_file, memory_limit, threads) as connection:
         tags_added = add_tags(connection, tags_json)
-    logger.info(f"Added {tags_added:,} tags in {perf_counter() - start:.1f} s")
+    logger.info(f"Added {counted(tags_added, 'tag')} in {perf_counter() - start:.1f} s")
 
 
 @cli.command("add-medias")
@@ -151,5 +153,31 @@ def add_medias_command(
     with db.connect(db_file, memory_limit, threads) as connection:
         medias_added, medias_skipped = add_medias(connection, medias_json, ignore_existing)
     if medias_skipped:
-        logger.info(f"Skipped {medias_skipped:,} medias that exist")
-    logger.info(f"Added {medias_added:,} medias in {perf_counter() - start:.1f} s")
+        logger.info(f"Skipped {counted(medias_skipped, 'media', 'medias')} that exist")
+    logger.info(
+        f"Added {counted(medias_added, 'media', 'medias')} in {perf_counter() - start:.1f} s"
+    )
+
+
+@cli.command("add-taggings")
+@click.argument("db_file", type=EXISTING_FILE)
+@click.argument("taggings_json", type=EXISTING_FILE)
+@duckdb_options
+def add_taggings_command(
+    db_file: Path, taggings_json: Path, memory_limit: str, threads: int | None
+):
+    """Add the taggings in TAGGINGS_JSON to DB_FILE.
+
+    \b
+    TAGGINGS_JSON is a list of medias with their tags per tagset, for example
+    [{"media_source": "v1.mp4", "tagsets": {"People": ["Anna", "Bo"], "Year": [2019]}}]
+
+    Each media must exist in DB_FILE. A tagging for an unknown tagset, or for a value
+    that is not a tag of its tagset, is skipped with a WARNING. Add missing values with
+    m3db add-tags first.
+    """
+    logger.info(f"Reading {taggings_json}")
+    start = perf_counter()
+    with db.connect(db_file, memory_limit, threads) as connection:
+        taggings_added = add_taggings(connection, taggings_json)
+    logger.info(f"Added {counted(taggings_added, 'tagging')} in {perf_counter() - start:.1f} s")

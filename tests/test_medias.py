@@ -160,7 +160,7 @@ def test_ignore_existing_skips_existing_medias_and_adds_the_rest(m3db, new_db, w
     result = m3db("add-medias", new_db, write_json("more.json", more), "--ignore-existing")
 
     assert result.exit_code == 0, result.output
-    assert "Added 1 medias" in result.stderr
+    assert "Added 1 media" in result.stderr
     assert "Skipped 2 medias that exist" in result.stderr
     assert medias_by_id(query) == [
         (1, "v1.mp4", None),

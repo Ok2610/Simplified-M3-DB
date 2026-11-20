@@ -5,22 +5,10 @@ from pathlib import Path
 import duckdb
 
 from m3db import M3DBError
-from m3db.db import execute, transaction
+from m3db.checks import run_checks
+from m3db.db import TAG_TYPE_NAMES, TAG_TYPES, execute, transaction
 from m3db.json_input import read_json
 from m3db.logs import phase
-
-# Each tag type ID with its tag type name and the SQL that turns a JSON value `j` into
-# the type of the value column in the table {name}_tags
-TAG_TYPES = {
-    1: ("alphanumerical", "j->>'$'"),
-    2: ("timestamp", "CAST(j->>'$' AS TIMESTAMP)"),
-    3: ("time", "CAST(j->>'$' AS TIME)"),
-    4: ("date", "CAST(j->>'$' AS DATE)"),
-    5: ("numerical_int", "CAST(j->>'$' AS BIGINT)"),
-    6: ("numerical_dec", "CAST(j->>'$' AS DECIMAL(10,5))"),
-    7: ("json", "j->>'$'"),
-}
-TAG_TYPE_NAMES = ", ".join(name for name, _ in TAG_TYPES.values())
 
 TAGSETS_COLUMNS = {"name": "VARCHAR", "tagtype": "VARCHAR", "tags": "JSON[]"}
 TAGS_COLUMNS = {"tagset_name": "VARCHAR", "tags": "JSON[]"}
@@ -49,6 +37,7 @@ def add_tagsets(
         with phase("Add tagsets"):
             tagsets_added = insert_tagsets(connection)
         tags_added = add_tag_lists(connection, file_name)
+        run_checks(connection)
     return tagsets_added, tags_added
 
 
@@ -81,7 +70,9 @@ def add_tags(connection: duckdb.DuckDBPyConnection, tags_json: Path) -> int:
                 f'Tagset "{unknown[0]}" in {file_name} does not exist. '
                 "Add it with m3db add-tagsets first."
             )
-        return add_tag_lists(connection, file_name)
+        tags_added = add_tag_lists(connection, file_name)
+        run_checks(connection)
+    return tags_added
 
 
 def check_tagset_entries(

@@ -10,6 +10,19 @@ from loguru import logger
 
 DUCKDB_SCHEMA = files("m3db") / "ddl_duckdb.sql"
 
+# Each tag type ID with its tag type name and the SQL that turns a JSON value `j` into
+# the type of the value column in the table {name}_tags
+TAG_TYPES = {
+    1: ("alphanumerical", "j->>'$'"),
+    2: ("timestamp", "CAST(j->>'$' AS TIMESTAMP)"),
+    3: ("time", "CAST(j->>'$' AS TIME)"),
+    4: ("date", "CAST(j->>'$' AS DATE)"),
+    5: ("numerical_int", "CAST(j->>'$' AS BIGINT)"),
+    6: ("numerical_dec", "CAST(j->>'$' AS DECIMAL(10,5))"),
+    7: ("json", "j->>'$'"),
+}
+TAG_TYPE_NAMES = ", ".join(name for name, _ in TAG_TYPES.values())
+
 
 def connect(
     db_file: Path, memory_limit: str = "1GB", threads: int | None = None
